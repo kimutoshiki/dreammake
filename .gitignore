@@ -27,7 +27,12 @@ prisma/*.db-journal
 prisma/migrations/**/*.sql.bak
 
 # Dev storage (ローカル FS 実装のアップロード先)
-storage/
+/storage/
+
+# Runtime uploads(児童が カメラ/マイク/お絵かきで 作った作品)
+# 中身は Git 管理せず、.gitkeep だけ残す
+/public/uploads/*
+!/public/uploads/.gitkeep
 
 # Testing
 coverage/

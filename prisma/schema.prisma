@@ -270,6 +270,10 @@ model Artwork {
   musicUrl             String?
   musicScore           String?
   musicMood            String?
+  // audio(録音+文字起こし)
+  audioUrl             String?
+  audioTranscript      String?
+  audioDurationSec     Int?
   // quiz
   quizSpec             String?
   quizKind             String?
