@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
 import { Card, CardTitle } from '@/components/ui/Card';
+import { getFeedbackForArtworks } from '@/lib/queries/feedback';
+import { FeedbackStampBadges } from '@/components/FeedbackStampRow';
 
 const KIND_LABEL: Record<string, string> = {
   photo: '📷 しゃしん',
@@ -23,6 +25,10 @@ export default async function GalleryPage() {
     where: { ownerId: user.id },
     orderBy: { createdAt: 'desc' },
   });
+  const feedbackMap = await getFeedbackForArtworks(
+    works.map((w) => w.id),
+    null,
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
@@ -55,20 +61,31 @@ export default async function GalleryPage() {
         </Card>
       ) : (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {works.map((w) => (
-            <Card key={w.id} className="!p-3">
-              <ArtworkView artwork={w} />
-              <div className="mt-2 flex items-center justify-between">
-                <p className="truncate text-sm font-medium">{w.title}</p>
-                <span className="rounded-full bg-kid-soft px-2 py-0.5 text-[10px]">
-                  {KIND_LABEL[w.kind] ?? w.kind}
-                </span>
-              </div>
-              <p className="text-[11px] text-kid-ink/50">
-                {new Date(w.createdAt).toLocaleString('ja-JP')}
-              </p>
-            </Card>
-          ))}
+          {works.map((w) => {
+            const fb = feedbackMap.get(w.id);
+            return (
+              <Card key={w.id} className="!p-3">
+                <ArtworkView artwork={w} />
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="truncate text-sm font-medium">{w.title}</p>
+                  <span className="rounded-full bg-kid-soft px-2 py-0.5 text-[10px]">
+                    {KIND_LABEL[w.kind] ?? w.kind}
+                  </span>
+                </div>
+                <p className="text-[11px] text-kid-ink/50">
+                  {new Date(w.createdAt).toLocaleString('ja-JP')}
+                </p>
+                {fb && Object.keys(fb.countByStamp).length > 0 && (
+                  <div className="mt-2 border-t border-kid-ink/5 pt-2">
+                    <p className="mb-1 text-[10px] text-kid-ink/60">
+                      👩‍🏫 せんせいから
+                    </p>
+                    <FeedbackStampBadges countByStamp={fb.countByStamp} />
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
     </main>

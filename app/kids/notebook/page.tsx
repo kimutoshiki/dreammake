@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
 import { Card, CardTitle } from '@/components/ui/Card';
+import { getFeedbackForFieldNotes } from '@/lib/queries/feedback';
+import { FeedbackStampBadges } from '@/components/FeedbackStampRow';
 
 export default async function NotebookListPage({
   searchParams,
@@ -33,6 +35,10 @@ export default async function NotebookListPage({
     orderBy: { createdAt: 'desc' },
     include: { unit: { select: { title: true } } },
   });
+  const feedbackMap = await getFeedbackForFieldNotes(
+    notes.map((n) => n.id),
+    null,
+  );
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
@@ -83,7 +89,9 @@ export default async function NotebookListPage({
         </Card>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {notes.map((n) => (
+          {notes.map((n) => {
+            const fb = feedbackMap.get(n.id);
+            return (
             <Link key={n.id} href={`/kids/notebook/${n.id}`} className="block">
               <Card className="transition-shadow hover:shadow-md">
                 <div className="flex items-center justify-between">
@@ -111,9 +119,18 @@ export default async function NotebookListPage({
                 <p className="mt-2 text-[11px] text-kid-ink/50">
                   {new Date(n.createdAt).toLocaleString('ja-JP')}
                 </p>
+                {fb && Object.keys(fb.countByStamp).length > 0 && (
+                  <div className="mt-2 border-t border-kid-ink/5 pt-2">
+                    <p className="mb-1 text-[10px] text-kid-ink/60">
+                      👩‍🏫 せんせいから
+                    </p>
+                    <FeedbackStampBadges countByStamp={fb.countByStamp} />
+                  </div>
+                )}
               </Card>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </main>

@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCurrentTeacher } from '@/lib/context/teacher';
 import { Card, CardTitle } from '@/components/ui/Card';
+import { getFeedbackForFieldNotes } from '@/lib/queries/feedback';
+import { TeacherFeedbackStampRow } from '@/components/FeedbackStampRow';
 
 export default async function TeacherClassNotebookPage({
   params,
@@ -43,7 +45,6 @@ export default async function TeacherClassNotebookPage({
   const notes = await prisma.fieldNote.findMany({
     where: {
       userId: filterStudent ? filterStudent : { in: studentIds },
-      // unit フィルタは unitId 指定 or 指定なし(クラスの 単元 ∪ 単元なし のノート)
       ...(filterUnitId
         ? { unitId: filterUnitId }
         : { OR: [{ unitId: { in: unitIds } }, { unitId: null }] }),
@@ -52,6 +53,11 @@ export default async function TeacherClassNotebookPage({
     include: { unit: { select: { title: true } } },
     take: 200,
   });
+
+  const feedbackMap = await getFeedbackForFieldNotes(
+    notes.map((n) => n.id),
+    teacher.id,
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
@@ -118,34 +124,47 @@ export default async function TeacherClassNotebookPage({
         </Card>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {notes.map((n) => (
-            <Card key={n.id}>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">📒 {n.title}</p>
-                {n.docsUrl && (
-                  <a
-                    href={n.docsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full bg-kid-accent/10 px-2 py-0.5 text-[11px] text-kid-accent hover:bg-kid-accent/20"
-                  >
-                    📄 Docs
-                  </a>
+          {notes.map((n) => {
+            const fb = feedbackMap.get(n.id) ?? {
+              countByStamp: {},
+              myStampIds: [],
+            };
+            return (
+              <Card key={n.id}>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">📒 {n.title}</p>
+                  {n.docsUrl && (
+                    <a
+                      href={n.docsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full bg-kid-accent/10 px-2 py-0.5 text-[11px] text-kid-accent hover:bg-kid-accent/20"
+                    >
+                      📄 Docs
+                    </a>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-kid-ink/60">
+                  {kidMap.get(n.userId) ?? '?'}
+                  {n.unit && <> · 単元: {n.unit.title}</>}
+                  {n.locationNote && <> · 📍 {n.locationNote}</>}
+                </p>
+                {n.notes && (
+                  <p className="mt-2 line-clamp-3 text-sm">{n.notes}</p>
                 )}
-              </div>
-              <p className="mt-1 text-xs text-kid-ink/60">
-                {kidMap.get(n.userId) ?? '?'}
-                {n.unit && <> · 単元: {n.unit.title}</>}
-                {n.locationNote && <> · 📍 {n.locationNote}</>}
-              </p>
-              {n.notes && (
-                <p className="mt-2 line-clamp-3 text-sm">{n.notes}</p>
-              )}
-              <p className="mt-2 text-[11px] text-kid-ink/50">
-                {new Date(n.createdAt).toLocaleString('ja-JP')}
-              </p>
-            </Card>
-          ))}
+                <p className="mt-2 text-[11px] text-kid-ink/50">
+                  {new Date(n.createdAt).toLocaleString('ja-JP')}
+                </p>
+                <div className="mt-3 border-t border-kid-ink/5 pt-2">
+                  <TeacherFeedbackStampRow
+                    target={{ fieldNoteId: n.id }}
+                    myStampIds={fb.myStampIds}
+                    allCountByStamp={fb.countByStamp}
+                  />
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </main>

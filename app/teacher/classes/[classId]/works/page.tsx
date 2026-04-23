@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCurrentTeacher } from '@/lib/context/teacher';
 import { Card, CardTitle } from '@/components/ui/Card';
+import { getFeedbackForArtworks } from '@/lib/queries/feedback';
+import { TeacherFeedbackStampRow } from '@/components/FeedbackStampRow';
 
 const KIND_LABEL: Record<string, string> = {
   photo: '📷 しゃしん',
@@ -78,6 +80,11 @@ export default async function ClassWorksPage({
     countByKind.set(w.kind, (countByKind.get(w.kind) ?? 0) + 1);
   }
 
+  const feedbackMap = await getFeedbackForArtworks(
+    works.map((w) => w.id),
+    teacher.id,
+  );
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <Card>
@@ -143,21 +150,34 @@ export default async function ClassWorksPage({
         </Card>
       ) : (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {works.map((w) => (
-            <Card key={w.id} className="!p-3">
-              <WorkView artwork={w} />
-              <div className="mt-2 flex items-center justify-between">
-                <p className="truncate text-sm font-medium">{w.title}</p>
-                <span className="rounded-full bg-kid-soft px-2 py-0.5 text-[10px]">
-                  {KIND_LABEL[w.kind] ?? w.kind}
-                </span>
-              </div>
-              <p className="text-[11px] text-kid-ink/50">
-                {kidMap.get(w.ownerId) ?? '?'} ·{' '}
-                {new Date(w.createdAt).toLocaleString('ja-JP')}
-              </p>
-            </Card>
-          ))}
+          {works.map((w) => {
+            const fb = feedbackMap.get(w.id) ?? {
+              countByStamp: {},
+              myStampIds: [],
+            };
+            return (
+              <Card key={w.id} className="!p-3">
+                <WorkView artwork={w} />
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="truncate text-sm font-medium">{w.title}</p>
+                  <span className="rounded-full bg-kid-soft px-2 py-0.5 text-[10px]">
+                    {KIND_LABEL[w.kind] ?? w.kind}
+                  </span>
+                </div>
+                <p className="text-[11px] text-kid-ink/50">
+                  {kidMap.get(w.ownerId) ?? '?'} ·{' '}
+                  {new Date(w.createdAt).toLocaleString('ja-JP')}
+                </p>
+                <div className="mt-3 border-t border-kid-ink/5 pt-2">
+                  <TeacherFeedbackStampRow
+                    target={{ artworkId: w.id }}
+                    myStampIds={fb.myStampIds}
+                    allCountByStamp={fb.countByStamp}
+                  />
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </main>

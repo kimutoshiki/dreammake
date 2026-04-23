@@ -567,6 +567,22 @@ model UnitArtwork {
   @@id([unitId, artworkId])
 }
 
+/// 先生から 児童の 作品・記録ノートへの 応援スタンプ(フィードバック)。
+/// 自由記述は モデレーション負荷を 避けるため、スタンプ(絵文字)+ 定型コメントコードのみ。
+model Feedback {
+  id          String    @id @default(cuid())
+  teacherId   String
+  artworkId   String?
+  fieldNoteId String?
+  stamp       String    // 例: 'like' | 'wow' | 'think' | 'grow' | 'cheer'
+  createdAt   DateTime  @default(now())
+
+  @@unique([teacherId, artworkId, stamp], name: "unique_artwork_stamp")
+  @@unique([teacherId, fieldNoteId, stamp], name: "unique_note_stamp")
+  @@index([artworkId])
+  @@index([fieldNoteId])
+}
+
 /// 記録ノート(Field Note):iPad で取材中に、写真・録音・お絵かき・テキストを 1 枚のカードに束ねる。
 /// 「📄 Google Docs にする」で、先生の Drive に Docs として書き出す。
 model FieldNote {

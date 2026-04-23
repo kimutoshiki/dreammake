@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentTeacher } from '@/lib/context/teacher';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { SheetsConfigClient } from './SheetsConfigClient';
+import { LookerStudioCard } from '@/components/LookerStudioCard';
 
 export default async function TeacherClassPage({
   params,
@@ -61,7 +62,7 @@ export default async function TeacherClassPage({
               <Card className="hover:shadow-md">
                 <h3 className="font-semibold">📒 クラスの記録ノート</h3>
                 <p className="mt-1 text-sm text-kid-ink/70">
-                  取材カード一覧、Docs へ書き出し済みの ノートは 直接開ける
+                  取材カード一覧、Docs 書き出し済みは 直接開ける、スタンプで応援
                 </p>
               </Card>
             </Link>
@@ -69,7 +70,7 @@ export default async function TeacherClassPage({
               <Card className="hover:shadow-md">
                 <h3 className="font-semibold">🗂️ クラスの作品</h3>
                 <p className="mt-1 text-sm text-kid-ink/70">
-                  児童が 作った 写真・動画・録音・絵・クイズを 一覧で
+                  児童の 写真・動画・録音・絵・クイズを 一覧、スタンプで応援
                 </p>
               </Card>
             </Link>
@@ -81,6 +82,9 @@ export default async function TeacherClassPage({
                 </p>
               </Card>
             </Link>
+          </div>
+          <div className="mt-4">
+            <LookerStudioCard hasSheets={Boolean(cls.sheetsWebhookUrl)} />
           </div>
         </Card>
       </section>
