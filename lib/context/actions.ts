@@ -1,16 +1,13 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-import { setSelectedKidId, clearSelectedKid } from '@/lib/context/kid';
+import { redirect } from 'next/navigation';
+import { clearSelectedKid } from '@/lib/context/kid';
 
-export async function pickKid(id: string): Promise<{ ok: boolean }> {
-  setSelectedKidId(id);
-  revalidatePath('/kids');
-  return { ok: true };
-}
-
-export async function unpickKid(): Promise<{ ok: boolean }> {
+/**
+ * Cookie の 出席番号を はずして、番号選択画面(/pick)へ もどる。
+ * プライバシーページ などから「iPad の ばんごうを かえる」時に 使う。
+ */
+export async function resetKidAndGoPick(): Promise<void> {
   clearSelectedKid();
-  revalidatePath('/kids');
-  return { ok: true };
+  redirect('/pick');
 }

@@ -1,9 +1,10 @@
 /**
- * 児童向け縮小版の シードデータ。
- * `pnpm db:seed` で 投入。教員アカウント・単元・立場・アンケートなどは 作らない。
+ * 児童向けの シードデータ(出席番号 1〜40)。
+ * 1 人 1 台の iPad を 前提に、各 iPad は 最初の訪問で 出席番号を 1 回 選ぶ。
+ * 以後は Cookie(30 日)で 固定、切替 UI なし。
  *
- * 学校 1 / クラス 1 / 児童 3 / 児童の 1 つ目のボット(ナレッジ 4 枚)を作る。
- * 認証は なし、ブラウザの Cookie セレクタで 児童を 切り替える。
+ * 学校 1 / クラス 1(4年1組)/ 児童 40(handle s-01..s-40、nickname "1 ばん".."40 ばん")/
+ * 1 ばんに 見本ボット 1 つ。
  */
 import { PrismaClient } from '@prisma/client';
 
@@ -30,16 +31,15 @@ async function main() {
     },
   });
 
-  const students = [
-    { handle: 's-4-01-001', nickname: 'みさき', avatarSeed: 'misaki' },
-    { handle: 's-4-01-002', nickname: 'たけし', avatarSeed: 'takeshi' },
-    { handle: 's-4-01-003', nickname: 'ゆい', avatarSeed: 'yui' },
-  ];
+  const studentIds: string[] = [];
+  for (let i = 1; i <= 40; i++) {
+    const num = String(i).padStart(2, '0');
+    const handle = `s-${num}`;
+    const nickname = `${i} ばん`;
+    const avatarSeed = `k-${num}`;
 
-  const studentIds: Record<string, string> = {};
-  for (const s of students) {
     const existing = await prisma.user.findUnique({
-      where: { handle: s.handle },
+      where: { handle },
     });
     let gradeProfileId = existing?.gradeProfileId ?? null;
     if (!gradeProfileId) {
@@ -55,14 +55,14 @@ async function main() {
       gradeProfileId = gp.id;
     }
     const user = await prisma.user.upsert({
-      where: { handle: s.handle },
+      where: { handle },
       update: {},
       create: {
         role: 'student',
         schoolId: school.id,
-        handle: s.handle,
-        nickname: s.nickname,
-        avatarSeed: s.avatarSeed,
+        handle,
+        nickname,
+        avatarSeed,
         gradeProfileId,
       },
     });
@@ -71,17 +71,17 @@ async function main() {
       update: {},
       create: { classId: klass.id, userId: user.id, role: 'student' },
     });
-    studentIds[s.handle] = user.id;
+    studentIds.push(user.id);
   }
 
-  // みさきに 見本ボットを 作る(新しい児童が 空でも さびしくないように)
-  const misakiId = studentIds['s-4-01-001']!;
+  // 1 ばんに 見本ボット(初回起動時でも空で さびしくないように)
+  const firstKidId = studentIds[0]!;
   const bot = await prisma.bot.upsert({
     where: { id: 'demo-bot-town' },
     update: {},
     create: {
       id: 'demo-bot-town',
-      ownerId: misakiId,
+      ownerId: firstKidId,
       classId: klass.id,
       name: '町はかせ',
       avatarSeed: 'machi-hakase',
@@ -93,7 +93,6 @@ async function main() {
     },
   });
 
-  // ナレッジと 出典の サンプル(出典は 任意、この例では つけている)
   const existingCards = await prisma.knowledgeCard.count({
     where: { botId: bot.id },
   });
@@ -151,10 +150,10 @@ async function main() {
     }
   }
 
-  console.log('🌱 シード完了');
+  console.log('🌱 シード完了(児童 40 人)');
   console.log('');
-  console.log('  http://localhost:3000/kids   → こどもの ページ(右上 で 3 人を 切替)');
-  console.log('  認証は ありません。クラスの iPad で そのまま 開いて 使えます。');
+  console.log('  http://localhost:3000/  → 初回は 番号えらび、2 回目から /kids');
+  console.log('  iPad 1 台 = 児童 1 人。番号は Cookie で 固定(30 日)。');
 }
 
 main()

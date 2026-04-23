@@ -74,13 +74,21 @@ iPad 自体に 個別 Wi-Fi の 高速通信は 不要です。
 
 ---
 
-## 👤 ユーザー(ログインなし)
+## 👤 ユーザー(ログインなし / 出席番号)
 
-シード投入時に 児童 3 人が 登録されます:
-- みさき(`s-4-01-001`)/ たけし(`s-4-01-002`)/ ゆい(`s-4-01-003`)
+シード投入時に 4年1組の 児童 40 人(出席番号 1〜40)が 登録されます。
+**1 人 1 台の iPad** を 前提に、最初の 訪問で 自分の 番号を 1 回だけ 選びます
+(ニックネームは 自動で「1 ばん」「2 ばん」… が 割り当たります)。
 
-画面 右上の **セレクタ** で 切替(Cookie に 30 日保存)。パスワードは ありません。
-教室の iPad を 共有で 使う想定です。
+以後は Cookie(30 日)で 固定。教室で 切り替える UI は ありません。
+番号を まちがえたときは `/privacy` の「🔁 iPad の ばんごうを かえる」から
+Cookie を 消して 選び直せます。
+
+```
+http://localhost:3000/       → 初回は /pick(番号えらび)、2回目以降は /kids
+http://localhost:3000/kids   → ハブ(タイル並び)
+http://localhost:3000/pick   → 出席番号の 選択画面
+```
 
 ---
 
@@ -100,7 +108,8 @@ iPad 自体に 個別 Wi-Fi の 高速通信は 不要です。
 
 ```
 app/
-  page.tsx              → /kids へリダイレクト
+  page.tsx              → Cookie あり→/kids、なし→/pick
+  pick/page.tsx         → 出席番号 1〜40 を タイルで 選ぶ
   kids/
     page.tsx            → ハブ(タイル並び)
     bots/               → マイボット作成・対話
@@ -113,7 +122,7 @@ app/
     image/generate/     → Claude 安全化 → Gemini 生成
     upload/             → ファイル(写真/動画/音声/お絵かき)保存
 lib/
-  context/kid.ts        → Cookie セレクタ(認証なし)
+  context/kid.ts        → Cookie で 出席番号を 保持(認証なし)
   llm/anthropic.ts, integrations/gemini-image.ts  → AI
   moderation/*, prompts/child-safety.ts           → 安全
   music/wav-encoder.ts, video/markers.ts          → 作品ツール

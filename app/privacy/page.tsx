@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Card, CardTitle } from '@/components/ui/Card';
+import { resetKidAndGoPick } from '@/lib/context/actions';
 
 export default function PrivacyPage() {
   return (
@@ -91,14 +92,26 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link
             href="/kids"
             className="rounded-full bg-kid-soft px-4 py-2 text-sm hover:bg-kid-primary/20"
           >
             ← こどもの ページへ
           </Link>
+          <form action={resetKidAndGoPick}>
+            <button
+              type="submit"
+              className="rounded-full border border-kid-ink/10 bg-white px-4 py-2 text-sm text-kid-ink/70 hover:bg-kid-soft"
+            >
+              🔁 iPad の ばんごうを かえる
+            </button>
+          </form>
         </div>
+        <p className="mt-2 text-xs text-kid-ink/50">
+          番号を まちがえて えらんだときだけ 使ってね。Cookie を けして、
+          番号えらびの 画面に もどるよ。
+        </p>
       </Card>
     </main>
   );

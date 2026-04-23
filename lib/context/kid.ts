@@ -1,9 +1,9 @@
 /**
  * 児童ページの「いま誰として操作しているか」を Cookie で保持。
  *
- * 認証ではなく、タブレットを教室で使う想定の**簡易セレクタ**。
- * Cookie に児童の User.id を入れるだけで、JWT も パスワードも 使わない。
- * セキュリティ境界は「教室内で使う端末」の前提に 依存する。
+ * 認証ではなく、1 人 1 台の iPad を 前提とした **出席番号の 初回選択**。
+ * Cookie に出席番号の User.id を入れるだけで、JWT も パスワードも 使わない。
+ * セキュリティ境界は「児童が 自分の iPad を 使う」前提に 依存する。
  */
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
@@ -35,41 +35,22 @@ export type KidWithProfile = NonNullable<
 };
 
 /**
- * 現在のキッド + 切替用の全員リストを返す。
- * 選択されていなければ最初の児童をデフォルトにする。
+ * Cookie に入っている 出席番号で 児童を ひく。
+ * 未設定や 存在しない ID なら null を返し、呼び出し側で 番号選択画面へ 誘導する。
  */
 export async function getCurrentKid(): Promise<{
   current: KidWithProfile | null;
-  allKids: Array<{ id: string; nickname: string | null; handle: string | null; avatarSeed: string | null }>;
 }> {
   const picked = await getSelectedKidId();
-
-  const allKids = await prisma.user.findMany({
-    where: { role: 'student' },
-    select: {
-      id: true,
-      nickname: true,
-      handle: true,
-      avatarSeed: true,
-    },
-    orderBy: [{ handle: 'asc' }],
-  });
-
-  if (allKids.length === 0) {
-    return { current: null, allKids: [] };
-  }
-
-  const targetId = picked && allKids.some((k) => k.id === picked)
-    ? picked
-    : allKids[0]!.id;
+  if (!picked) return { current: null };
 
   const current = await prisma.user.findUnique({
-    where: { id: targetId },
+    where: { id: picked },
     include: {
       gradeProfile: true,
       school: true,
     },
   });
 
-  return { current: current as KidWithProfile | null, allKids };
+  return { current: (current as KidWithProfile | null) ?? null };
 }

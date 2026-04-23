@@ -1,10 +1,18 @@
 import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
+import { getSelectedKidId } from '@/lib/context/kid';
 
 /**
- * ルート URL は、「児童用」と「先生用」どちらに入るかの選択画面を持たない。
- * 児童用が主役のプラットフォームなので、こどもの ページへ自動で飛ばす。
- * 先生は /teacher を直接開く(ブックマーク / QR コードで配布する想定)。
+ * iPad で 最初に 開いたとき:
+ *   - まだ 出席番号を 選んでいない → /pick
+ *   - すでに Cookie に 有効な 番号がある → /kids
+ * 先生向けページや ログイン画面は ない(1 人 1 台の iPad 前提)。
  */
-export default function RootPage() {
-  redirect('/kids');
+export default async function RootPage() {
+  const picked = await getSelectedKidId();
+  if (picked) {
+    const exists = await prisma.user.findUnique({ where: { id: picked } });
+    if (exists) redirect('/kids');
+  }
+  redirect('/pick');
 }
