@@ -51,6 +51,18 @@ export function ChatClient({
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => null);
+        if (data?.rateLimited) {
+          setMessages((prev) => {
+            const copy = [...prev];
+            copy[copy.length - 1] = {
+              role: 'assistant',
+              content: data.reason ?? 'きょうは たくさん しらべたね。あした また つづけよう。',
+              blocked: true,
+            };
+            return copy;
+          });
+          return;
+        }
         if (data?.blocked) {
           setMessages((prev) => {
             const copy = [...prev];

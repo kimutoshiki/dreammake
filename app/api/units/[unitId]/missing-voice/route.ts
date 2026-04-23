@@ -8,6 +8,8 @@ import { z } from 'zod';
 import { readSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 import { completeJson } from '@/lib/llm/anthropic';
+import { checkLLMRateLimit, rateLimitMessageJa } from '@/lib/rate-limit';
+import { childSafetySystemBlock } from '@/lib/prompts/child-safety';
 import {
   buildMissingVoiceSystem,
   type MissingVoiceOutput,
@@ -57,6 +59,13 @@ export async function POST(
   if (!session || session.role !== 'student') {
     return NextResponse.json({ error: 'not authenticated' }, { status: 401 });
   }
+  const rl = await checkLLMRateLimit(session.userId);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: rateLimitMessageJa(rl), rateLimited: true },
+      { status: 429 },
+    );
+  }
   const raw = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(raw);
   if (!parsed.success) {
@@ -96,7 +105,7 @@ export async function POST(
   try {
     const output = await completeJson(
       {
-        system: { text: system },
+        system: [childSafetySystemBlock(), { text: system }],
         messages: [
           {
             role: 'user',

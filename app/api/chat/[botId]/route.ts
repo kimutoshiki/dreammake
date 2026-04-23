@@ -16,6 +16,7 @@ import { stream } from '@/lib/llm/anthropic';
 import { appendCitation, parseCiteTag } from '@/lib/llm/cite';
 import { buildBotRuntimeSystem, gradeMaxTokens } from '@/lib/prompts/bot-runtime';
 import { moderateInput } from '@/lib/moderation/input';
+import { checkLLMRateLimit, rateLimitMessageJa } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,15 @@ export async function POST(
   const session = await readSession();
   if (!session || session.role !== 'student') {
     return NextResponse.json({ error: 'not authenticated' }, { status: 401 });
+  }
+
+  // レート制限チェック(日次呼び出し上限)
+  const rl = await checkLLMRateLimit(session.userId);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { blocked: true, reason: rateLimitMessageJa(rl), rateLimited: true },
+      { status: 429 },
+    );
   }
 
   const raw = await req.json().catch(() => null);

@@ -1,7 +1,11 @@
 /**
  * ボット本体ランタイムの System プロンプト組み立て。
  * docs/04-prompts/bot-runtime.md の完成文を TypeScript のテンプレートに落とす。
+ *
+ * すべての System ブロックの先頭に Anthropic 公式の child-safety プロンプトを
+ * 差し込む(lib/prompts/child-safety.ts 参照)。
  */
+import { childSafetySystemBlock } from '@/lib/prompts/child-safety';
 
 export type GradeBand = 'lower' | 'middle' | 'upper';
 
@@ -155,6 +159,8 @@ ${RESPONSE_LENGTH[input.gradeBand]}
 さあ、「${input.bot.name}」として、子どもとお話ししましょう。`;
 
   return [
+    // 先頭に Anthropic 公式の child-safety プロンプトを必ず差し込む
+    childSafetySystemBlock(),
     { text: headerBlock },
     { text: cardsBlock, cache: true }, // 大きい部分はキャッシュ
     { text: rulesBlock },

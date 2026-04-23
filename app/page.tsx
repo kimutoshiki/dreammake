@@ -53,6 +53,21 @@ export default async function HomePage() {
             絵柄 🐟 🌸 🍎(みさき)
           </p>
         </div>
+
+        <div className="mt-6 rounded-2xl border-2 border-kid-ink/10 bg-white p-4 text-sm text-kid-ink/80">
+          <p className="font-medium">🤖 AI を使っていることの お知らせ</p>
+          <p className="mt-1">
+            このアプリは、ボットとの対話や「声が聞こえていないのはだれ?」機能で、
+            <strong>Anthropic の Claude API</strong> を使って AI 応答を生成しています。
+            AI は間違えることがあります。大事なことは 本・先生・おうちの人にも
+            たしかめてね。
+          </p>
+          <p className="mt-2 text-xs">
+            <Link href="/privacy" className="text-kid-primary underline">
+              AI 利用と プライバシーの 詳しい説明 →
+            </Link>
+          </p>
+        </div>
       </Card>
     </main>
   );

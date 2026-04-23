@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { env } from '@/lib/env';
+import { isChildSafetyPromptPlaceholder } from '@/lib/prompts/child-safety';
 
 /**
  * ヘルスチェック・エンドポイント。
@@ -22,6 +23,10 @@ export function GET() {
     },
     anthropicConfigured: Boolean(env.ANTHROPIC_API_KEY),
     authSecretConfigured: Boolean(env.AUTH_SECRET),
+    childSafetyPrompt: isChildSafetyPromptPlaceholder()
+      ? 'placeholder (replace with Anthropic official prompt before deploy)'
+      : 'configured',
+    dailyLlmLimitPerUser: env.SAFETY_DAILY_LLM_CALL_LIMIT_PER_USER,
     defaultGradeProfile: env.DEFAULT_GRADE_PROFILE,
     timestamp: new Date().toISOString(),
   });

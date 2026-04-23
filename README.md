@@ -158,17 +158,115 @@ pnpm dev
 
 ---
 
-## 🔑 環境変数
+## 🔑 API キーと秘密情報の 取り扱い(小学生向けアプリ特有の要件)
+
+### 🚨 大原則
+**API キーは クレジットカード番号と 同じ**扱い。
+クライアント(児童の タブレットで 動くブラウザ)に絶対に埋め込まない。
+本アプリはすべての LLM 呼び出しを Next.js Route Handler(サーバー側)
+から行い、クライアントには API キーを送出しません。
+この構成を 崩さないことが 最も重要です。
+
+### 📋 ローカル開発でのセットアップ(最短手順)
+
+```bash
+# 1. テンプレートを複製
+cp .env.example .env.local
+
+# 2. 各種キーを生成・取得
+#    ANTHROPIC_API_KEY: https://console.anthropic.com/ で 発行(※ 後述のキー名運用を 必ず 参照)
+#    AUTH_SECRET:       openssl rand -base64 32
+#    RESEARCH_ANONYMOUS_ID_PEPPER: openssl rand -base64 32
+
+# 3. .env.local を エディタで開き 値を記入
+#    .env.local は .gitignore 済みなので コミットされません
+
+# 4. 動作確認
+pnpm dev
+curl http://localhost:3000/healthz
+#  → "anthropicConfigured": true, "authSecretConfigured": true なら OK
+```
+
+### 🔐 Anthropic API キーの発行方針(推奨)
+
+漏洩時の影響範囲を 限定するため、**用途別・環境別**に
+キーを分けて 発行することを強く推奨します。
+
+| 用途 | キー名(Anthropic Console 上のラベル例) | 用途 |
+|------|-----------------------------------------|------|
+| 開発 | `dreammake-dev-<developer>` | 各開発者の ローカル開発用、最小限の 支出上限 |
+| CI | `dreammake-ci` | CI 上のスモークテスト(常時低上限) |
+| ステージング | `dreammake-staging` | 限定公開での 検証 |
+| 本番 | `dreammake-prod` | 本番、高い上限を 別途 設定 |
+
+あわせて Anthropic Console の **Spend limit** を用途ごとに設定し、
+**Usage alerts** を有効にしてください(例:80% で通知)。
+
+### ⚠️ 禁則事項(やったら 即 キー失効)
+
+- GitHub / GitLab 等の **リモート** リポジトリに `.env` / `.env.local` を push しない
+  (本リポジトリは `.gitignore` で除外済み)
+- 児童の 端末で 動くコード(`app/(kids)/` 配下の Client Component や iframe)に
+  `ANTHROPIC_API_KEY` を渡す 箇所を 作らない。`lib/env.ts` は Node.js サーバーでのみ
+  参照される設計です
+- API キーを Slack / ドキュメント ツール / ChatGPT / クリップボード共有 サービスに
+  貼り付けない(Anthropic からの 警告対象)
+
+### 🆘 漏洩したかも、と 思ったら
+
+1. Anthropic Console の **API keys** ページで 該当キーを即座に **Revoke**
+2. 新しいキーを発行し、`.env.local` / デプロイ先の シークレットマネージャを更新
+3. 直近の Usage / Cost を確認、異常があれば サポートに連絡
+4. 公開リポジトリに漏れた場合は、**git の履歴から キーを除去**
+   (`git filter-repo` など、GitHub の Secret Scanning が 自動通報することもあります)
+
+### 🛡️ 本アプリが 既に 満たしている「未成年者向け」安全要件
+
+Anthropic の未成年者向け利用ガイドライン
+(https://support.claude.com/en/articles/9307344 )が要求する 安全対策と、
+本アプリの対応箇所の対応表:
+
+| 要求事項 | 本アプリでの実装 |
+|---------|----------------|
+| **AI 利用の開示** | 着地画面と [/privacy](app/privacy/page.tsx) で 明示、ボット画面に「AI は まちがえることが あるよ」常設 |
+| **モデレーション / フィルタリング** | [lib/moderation/rules.ts](lib/moderation/rules.ts)(PII・電話・メール)+ [lib/moderation/input.ts](lib/moderation/input.ts)(Claude Haiku 判定) |
+| **child-safety system prompt の差し込み** | [lib/prompts/child-safety.ts](lib/prompts/child-safety.ts) — **本番前に Anthropic 公式本文へ差し替え必須**(`/healthz` で placeholder 状態を可視化) |
+| **年齢確認 / 本人確認** | 組織(学校)が児童アカウントを発行、教員が保護者同意を代行記録(絵柄パスワード + 学校コード認証) |
+| **1 日の呼び出し上限** | [lib/rate-limit.ts](lib/rate-limit.ts) が `AuditLog` を集計して 強制、`SAFETY_DAILY_LLM_CALL_LIMIT_PER_USER` で設定 |
+| **サーバーサイド プロキシ** | すべての Claude 呼び出しは Route Handler / Server Action 経由(クライアント露出ゼロ) |
+| **監視 / 監査** | `AuditLog` に全 LLM 呼び出し、`ModerationLog` に全モデレーション結果、`IncidentReport` にハードブロックと危険兆候 |
+| **保護者同意** | `ConsentRecord(kind='llm-usage' / 'research-participation' ...)` を教員経由で記録 |
+
+### 📝 本番前の チェックリスト(組織 / 学校 向け)
+
+- [ ] [lib/prompts/child-safety.ts](lib/prompts/child-safety.ts) の `ANTHROPIC_CHILD_SAFETY_SYSTEM_PROMPT` を、
+      Anthropic 公式の 最新本文で 置き換えた(**プレースホルダのまま 本番に出さない**)
+- [ ] Anthropic Console で **本番用** API キーを発行(dev とは別キー)
+- [ ] Spend limit と Usage alerts を設定
+- [ ] デプロイ先(Vercel / オンプレ等)の **シークレットマネージャ** に
+      `ANTHROPIC_API_KEY` / `AUTH_SECRET` / `RESEARCH_ANONYMOUS_ID_PEPPER` を登録
+      (`.env.local` をサーバーに持ち込まない)
+- [ ] 教育委員会 / 自治体の ガイドラインと 個人情報保護法 への適合を確認
+- [ ] 保護者向け 説明書 / 同意書の 配布準備(紙か 学校配布ツール、アプリ内ポータルは持たない方針)
+- [ ] プライバシーポリシーを /privacy 以外に 学校サイトにも 掲載
+- [ ] `/healthz` で `childSafetyPrompt` が `configured` になっていることを確認
+
+### 🧑‍💻 環境変数 一覧(抜粋)
 
 すべて [`.env.example`](.env.example) にテンプレートと説明があります。
 
-**最低限設定が必要なもの(Phase 1 時点):**
+**最低限(Phase 1 時点):**
 - `ANTHROPIC_API_KEY` — Claude API キー
-- `AUTH_SECRET` — `openssl rand -base64 32` で生成
-- `DATABASE_URL` — SQLite なら `file:./dev.db` のまま
+- `AUTH_SECRET` — `openssl rand -base64 32`
+- `DATABASE_URL` — SQLite なら `file:./dev.db`
+- `RESEARCH_ANONYMOUS_ID_PEPPER` — 匿名 ID 生成用(研究モード利用時は必須)
 
-**Phase 2 以降で必要:**
-- `RESEARCH_ANONYMOUS_ID_PEPPER` — 匿名 ID 生成用
+**安全・運用の 主な項目:**
+- `SAFETY_DAILY_LLM_CALL_LIMIT_PER_USER`(既定 100)— 1 児童 1 日の 呼び出し上限
+- `SAFETY_CONTINUOUS_USE_WARN_MINUTES`(既定 20)— 休憩 うながし
+- `SAFETY_INCIDENT_NOTIFY_EMAIL` — 教員宛 インシデント通知先
+
+**Phase 2 以降:**
 - `GOOGLE_API_KEY` — 画像生成(Gemini)用
 
 ---
