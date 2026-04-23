@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
 import { moderateInput } from '@/lib/moderation/input';
+import { postToUnitSheet } from '@/lib/integrations/sheets';
 
 const Schema = z.object({
   unitId: z.string().min(1),
@@ -47,7 +48,7 @@ export async function saveMissingVoiceHypothesis(input: z.infer<typeof Schema>) 
     };
   }
 
-  await prisma.missingVoiceHypothesis.create({
+  const row = await prisma.missingVoiceHypothesis.create({
     data: {
       unitId: parsed.data.unitId,
       userId: kid.id,
@@ -59,5 +60,19 @@ export async function saveMissingVoiceHypothesis(input: z.infer<typeof Schema>) 
     },
   });
   revalidatePath(`/kids/units/${parsed.data.unitId}`);
+
+  await postToUnitSheet(parsed.data.unitId, {
+    kind: 'missing-voice',
+    timestamp: row.createdAt.toISOString(),
+    student: { nickname: kid.nickname, handle: kid.handle },
+    title: 'まだ聞こえていない声の仮説',
+    content: parsed.data.hypothesisText,
+    extra: {
+      evidence: parsed.data.evidence ?? '',
+      shared: parsed.data.shared,
+      asked_prompt: parsed.data.askedPrompt,
+    },
+  });
+
   return { ok: true as const };
 }

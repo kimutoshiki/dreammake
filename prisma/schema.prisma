@@ -33,6 +33,12 @@ model Class {
   name         String
   gradeYear    Int
   defaultGrade String
+  /// Google Apps Script Web App の Deployment URL。
+  /// 児童の 録音文字おこし・ふりかえり・声の仮説などが、
+  /// 教員が指定した Google スプレッドシートへ自動追記される。
+  sheetsWebhookUrl    String?
+  /// Webhook に付与する シークレット(Apps Script 側で一致チェック)
+  sheetsWebhookSecret String?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
   memberships  ClassMembership[]

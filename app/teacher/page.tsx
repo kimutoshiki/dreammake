@@ -39,6 +39,13 @@ export default async function TeacherHome() {
                   児童 {m.class._count.memberships - 1}人 / 単元 {m.class.units.length}
                 </p>
               </div>
+              <Link
+                href={`/teacher/classes/${m.class.id}`}
+                className="rounded-full bg-kid-soft px-3 py-1 text-xs hover:bg-kid-primary/20"
+                title="クラス設定・Google スプレッドシート連携"
+              >
+                ⚙️ 設定
+              </Link>
             </div>
             <ul className="mt-3 space-y-2">
               {m.class.units.map((u) => (
@@ -60,6 +67,14 @@ export default async function TeacherHome() {
                   className="block rounded-xl border-2 border-dashed border-kid-ink/20 p-3 text-sm text-kid-ink/60 hover:border-kid-primary"
                 >
                   ➕ 新しい単元を作る
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`/teacher/classes/${m.class.id}/works`}
+                  className="block rounded-xl border-2 border-dashed border-kid-ink/20 p-3 text-sm text-kid-ink/60 hover:border-kid-primary"
+                >
+                  🗂️ クラスの作品を 見る
                 </Link>
               </li>
             </ul>

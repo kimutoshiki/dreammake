@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
 import { moderateInput } from '@/lib/moderation/input';
+import { postToUnitSheet } from '@/lib/integrations/sheets';
 
 const Schema = z.object({
   unitId: z.string().min(1),
@@ -56,7 +57,7 @@ export async function recordStance(formData: FormData) {
     };
   }
 
-  await prisma.stanceSnapshot.create({
+  const snap = await prisma.stanceSnapshot.create({
     data: {
       unitId: parsed.data.unitId,
       userId: kid.id,
@@ -67,8 +68,23 @@ export async function recordStance(formData: FormData) {
       phase: parsed.data.phase,
       source: 'self',
     },
+    include: { stance: true },
   });
   revalidatePath(`/kids/units/${parsed.data.unitId}`);
   revalidatePath(`/kids/units/${parsed.data.unitId}/stance`);
+
+  await postToUnitSheet(parsed.data.unitId, {
+    kind: 'stance',
+    timestamp: snap.createdAt.toISOString(),
+    student: { nickname: kid.nickname, handle: kid.handle },
+    title: snap.stance?.label ?? snap.customLabel ?? '(未分類)',
+    content: parsed.data.reasoning,
+    extra: {
+      phase: parsed.data.phase,
+      strength: parsed.data.strength,
+      custom_label: parsed.data.customLabel ?? null,
+    },
+  });
+
   return { ok: true as const };
 }

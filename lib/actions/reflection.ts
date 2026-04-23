@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
 import { moderateInput } from '@/lib/moderation/input';
 import { detectStandstillWords } from '@/lib/research/standstill-rules';
+import { postToUnitSheet } from '@/lib/integrations/sheets';
 
 const Schema = z.object({
   unitId: z.string().min(1),
@@ -69,6 +70,21 @@ export async function saveReflection(formData: FormData) {
   });
   revalidatePath(`/kids/units/${parsed.data.unitId}`);
   revalidatePath(`/kids/units/${parsed.data.unitId}/reflect`);
+
+  // Google スプレッドシート 連携(webhook 未設定なら no-op)
+  await postToUnitSheet(parsed.data.unitId, {
+    kind: 'reflection',
+    timestamp: entry.createdAt.toISOString(),
+    student: { nickname: kid.nickname, handle: kid.handle },
+    title: parsed.data.prompt,
+    content: parsed.data.text,
+    extra: {
+      phase: parsed.data.phase,
+      standstill_count: detection.total,
+      word_count: parsed.data.text.length,
+    },
+  });
+
   return {
     ok: true as const,
     entryId: entry.id,

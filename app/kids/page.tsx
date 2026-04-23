@@ -9,6 +9,7 @@ const CREATIVE_APPS: Array<{
   title: string;
   desc: string;
   disabled?: boolean;
+  badge?: string;
 }> = [
   {
     href: '/kids/create/photo',
@@ -27,6 +28,14 @@ const CREATIVE_APPS: Array<{
     icon: '🎙️',
     title: 'ろくおん + もじおこし',
     desc: '声を ろくおんして、自動で 文字に するよ',
+    badge: 'スプシ連携',
+  },
+  {
+    href: '/kids/create/image',
+    icon: '🖼️',
+    title: 'AI に 絵を かいてもらう',
+    desc: 'ことばで つたえると Gemini が 絵に してくれる',
+    badge: 'Gemini',
   },
   {
     href: '/kids/create/draw',
@@ -107,12 +116,17 @@ export default async function KidsHomePage() {
           {CREATIVE_APPS.map((app) => {
             const body = (
               <Card
-                className={`h-full transition-shadow ${
+                className={`relative h-full transition-shadow ${
                   app.disabled
                     ? 'cursor-not-allowed opacity-50'
                     : 'hover:shadow-md'
                 }`}
               >
+                {app.badge && (
+                  <span className="absolute right-3 top-3 rounded-full bg-kid-accent/10 px-2 py-0.5 text-[10px] text-kid-accent">
+                    {app.badge}
+                  </span>
+                )}
                 <div className="text-4xl">{app.icon}</div>
                 <CardTitle className="mt-2 text-base">{app.title}</CardTitle>
                 <p className="mt-1 text-xs text-kid-ink/70">{app.desc}</p>
