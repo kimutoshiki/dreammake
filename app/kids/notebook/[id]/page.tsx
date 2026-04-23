@@ -56,12 +56,20 @@ export default async function NotebookDetailPage({
               {new Date(note.createdAt).toLocaleString('ja-JP')}
             </p>
           </div>
-          <Link
-            href="/kids/notebook"
-            className="rounded-full bg-kid-soft px-3 py-1 text-xs hover:bg-kid-primary/20"
-          >
-            ← 一覧へ
-          </Link>
+          <div className="flex flex-col gap-1">
+            <Link
+              href={`/kids/notebook/${note.id}/edit`}
+              className="rounded-full bg-kid-primary/10 px-3 py-1 text-xs text-kid-primary hover:bg-kid-primary/20"
+            >
+              ✏️ へんしゅう
+            </Link>
+            <Link
+              href="/kids/notebook"
+              className="rounded-full bg-kid-soft px-3 py-1 text-xs hover:bg-kid-primary/20"
+            >
+              ← 一覧へ
+            </Link>
+          </div>
         </div>
       </Card>
 

@@ -75,6 +75,14 @@ export default async function GalleryPage() {
                 <p className="text-[11px] text-kid-ink/50">
                   {new Date(w.createdAt).toLocaleString('ja-JP')}
                 </p>
+                {w.kind === 'video' && (
+                  <Link
+                    href={`/kids/gallery/video/${w.id}`}
+                    className="mt-2 inline-block text-[11px] text-kid-primary underline"
+                  >
+                    🎯 大事な場面に マーカーを つける →
+                  </Link>
+                )}
                 {fb && Object.keys(fb.countByStamp).length > 0 && (
                   <div className="mt-2 border-t border-kid-ink/5 pt-2">
                     <p className="mb-1 text-[10px] text-kid-ink/60">
