@@ -44,6 +44,13 @@ const CREATIVE_APPS: Array<{
     desc: '指や Apple Pencil で かこう',
   },
   {
+    href: '/kids/notebook',
+    icon: '📒',
+    title: '記録ノート',
+    desc: '取材を 1 まいに まとめて Docs に できる',
+    badge: 'Docs 連携',
+  },
+  {
     href: '/kids/create/quiz',
     icon: '🧩',
     title: 'クイズを つくる',

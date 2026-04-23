@@ -100,6 +100,7 @@ model User {
   incidentsAsActor   IncidentReport[] @relation("incidentActor")
   incidentsAsSubject IncidentReport[] @relation("incidentSubject")
   stanceSnapshots    StanceSnapshot[] @relation("stanceUser")
+  fieldNotes         FieldNote[]      @relation("fieldNoteUser")
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -397,6 +398,7 @@ model Unit {
   cooccurrences   CoOccurrenceSnapshot[]
   bots            UnitBot[]
   artworks        UnitArtwork[]
+  fieldNotes      FieldNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -563,6 +565,27 @@ model UnitArtwork {
   addedAt   DateTime @default(now())
 
   @@id([unitId, artworkId])
+}
+
+/// 記録ノート(Field Note):iPad で取材中に、写真・録音・お絵かき・テキストを 1 枚のカードに束ねる。
+/// 「📄 Google Docs にする」で、先生の Drive に Docs として書き出す。
+model FieldNote {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation("fieldNoteUser", fields: [userId], references: [id])
+  unitId         String?
+  unit           Unit?     @relation(fields: [unitId], references: [id])
+  title          String
+  notes          String    @default("")
+  locationNote   String?
+  /// 添付 Artwork.id の JSON 配列(kind: photo | audio | drawing)
+  artworkIds     String    @default("[]")
+  docsUrl        String?
+  docsExportedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, unitId, createdAt])
 }
 
 // -----------------------------------------------------------

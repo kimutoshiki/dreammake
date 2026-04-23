@@ -57,6 +57,14 @@ export default async function TeacherClassPage({
         <Card>
           <CardTitle>クラスで つながるリンク</CardTitle>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Link href={`/teacher/classes/${cls.id}/notebook`} className="block">
+              <Card className="hover:shadow-md">
+                <h3 className="font-semibold">📒 クラスの記録ノート</h3>
+                <p className="mt-1 text-sm text-kid-ink/70">
+                  取材カード一覧、Docs へ書き出し済みの ノートは 直接開ける
+                </p>
+              </Card>
+            </Link>
             <Link href={`/teacher/classes/${cls.id}/works`} className="block">
               <Card className="hover:shadow-md">
                 <h3 className="font-semibold">🗂️ クラスの作品</h3>
