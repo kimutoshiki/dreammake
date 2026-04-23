@@ -1,0 +1,575 @@
+// Prisma schema for しらべてつくろう!AIラボ
+// 詳細は docs/02-data-model.md を参照。
+//
+// ローカル/オンプレ既定: SQLite。本番 Postgres へは provider のみ変更。
+// SQLite は enum を持たないため、enum 値はアプリ層 (Zod) で制約する。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------
+// 組織
+// -----------------------------------------------------------
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  classes   Class[]
+  users     User[]
+}
+
+model Class {
+  id           String            @id @default(cuid())
+  schoolId     String
+  school       School            @relation(fields: [schoolId], references: [id])
+  name         String
+  gradeYear    Int
+  defaultGrade String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  memberships  ClassMembership[]
+  bots         Bot[]
+  units        Unit[]
+
+  @@index([schoolId])
+}
+
+model ClassMembership {
+  id        String   @id @default(cuid())
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  role      String
+  createdAt DateTime @default(now())
+
+  @@unique([classId, userId])
+  @@index([userId])
+}
+
+// -----------------------------------------------------------
+// ユーザー
+// -----------------------------------------------------------
+model User {
+  id                String  @id @default(cuid())
+  role              String
+  schoolId          String?
+  school            School? @relation(fields: [schoolId], references: [id])
+
+  handle            String? @unique
+  nickname          String?
+  emojiPasswordHash String?
+  emojiPasswordSalt String?
+  avatarSeed        String?
+
+  gradeProfileId    String?       @unique
+  gradeProfile      GradeProfile? @relation(fields: [gradeProfileId], references: [id])
+
+  email         String?   @unique
+  emailVerified DateTime?
+
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+
+  guardianOf    GuardianLink[] @relation("guardian")
+  guardianLinks GuardianLink[] @relation("child")
+
+  consents ConsentRecord[]
+
+  memberships   ClassMembership[]
+  bots          Bot[]             @relation("botOwner")
+  conversations Conversation[]
+  artworks      Artwork[]
+  units         Unit[]            @relation("unitCreator")
+  sessions      Session[]
+
+  incidentsAsActor   IncidentReport[] @relation("incidentActor")
+  incidentsAsSubject IncidentReport[] @relation("incidentSubject")
+  stanceSnapshots    StanceSnapshot[] @relation("stanceUser")
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastActiveAt DateTime?
+
+  @@index([role, schoolId])
+}
+
+model GradeProfile {
+  id           String  @id @default(cuid())
+  band         String
+  gradeYear    Int?
+  furiganaMode String
+  voiceFirst   Boolean @default(false)
+  maxQaChars   Int
+  overrides    String  @default("{}")
+  user         User?
+}
+
+model GuardianLink {
+  id         String   @id @default(cuid())
+  childId    String
+  child      User     @relation("child", fields: [childId], references: [id])
+  guardianId String
+  guardian   User     @relation("guardian", fields: [guardianId], references: [id])
+  relation   String
+  createdAt  DateTime @default(now())
+
+  @@unique([childId, guardianId])
+}
+
+model ConsentRecord {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  kind      String
+  granted   Boolean
+  grantedBy String
+  grantedAt DateTime  @default(now())
+  revokedAt DateTime?
+  notes     String?
+
+  @@index([userId, kind])
+}
+
+// -----------------------------------------------------------
+// ボットとナレッジ
+// -----------------------------------------------------------
+model Bot {
+  id             String  @id @default(cuid())
+  ownerId        String
+  owner          User    @relation("botOwner", fields: [ownerId], references: [id])
+  classId        String?
+  class          Class?  @relation(fields: [classId], references: [id])
+  name           String
+  avatarSeed     String
+  persona        String
+  strengths      String
+  weaknesses     String
+  topic          String
+  isPublic       Boolean @default(false)
+  remixedFromId  String?
+  remixedFrom    Bot?    @relation("remix", fields: [remixedFromId], references: [id])
+  remixes        Bot[]   @relation("remix")
+
+  knowledgeCards KnowledgeCard[]
+  sources        Source[]
+  conversations  Conversation[]
+  likes          BotReaction[]
+  unitBots       UnitBot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([classId, isPublic])
+}
+
+model KnowledgeCard {
+  id        String   @id @default(cuid())
+  botId     String
+  bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  kind      String
+  question  String?
+  answer    String
+  sourceIds String   @default("[]")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([botId, order])
+}
+
+model Source {
+  id              String    @id @default(cuid())
+  botId           String
+  bot             Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  kind            String
+  title           String
+  authorOrWho     String?
+  url             String?
+  capturedAt      DateTime?
+  notes           String?
+  inheritedFromId String?
+  createdAt       DateTime  @default(now())
+
+  @@index([botId])
+}
+
+// -----------------------------------------------------------
+// 対話
+// -----------------------------------------------------------
+model Conversation {
+  id                   String    @id @default(cuid())
+  botId                String
+  bot                  Bot       @relation(fields: [botId], references: [id])
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id])
+  gradeProfileSnapshot String
+  startedAt            DateTime  @default(now())
+  lastMessageAt        DateTime  @default(now())
+  closed               Boolean   @default(false)
+  messages             Message[]
+  artworks             Artwork[]
+
+  @@index([userId, lastMessageAt])
+  @@index([botId, lastMessageAt])
+}
+
+model Message {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  rawContent     String?
+  citedSourceIds String         @default("[]")
+  moderation     ModerationLog?
+  tokensIn       Int?
+  tokensOut      Int?
+  latencyMs      Int?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+// -----------------------------------------------------------
+// 作品
+// -----------------------------------------------------------
+model Artwork {
+  id                   String        @id @default(cuid())
+  ownerId              String
+  owner                User          @relation(fields: [ownerId], references: [id])
+  kind                 String
+  title                String
+  // image
+  finalPrompt          String?
+  safetyFilteredPrompt String?
+  imageProvider        String?
+  imageModel           String?
+  imageUrl             String?
+  // infographic
+  template             String?
+  infographicHtml      String?
+  // mini-app
+  appCodeHtml          String?
+  staticScanResult     String?
+  // video
+  videoUrl             String?
+  videoScript          String?
+  videoStanceId        String?
+  videoDurationSec     Int?
+  // music
+  musicUrl             String?
+  musicScore           String?
+  musicMood            String?
+  // quiz
+  quizSpec             String?
+  quizKind             String?
+
+  derivedFromBotId        String?
+  createdInConversationId String?
+  createdInConversation   Conversation? @relation(fields: [createdInConversationId], references: [id])
+  isPublic                Boolean       @default(false)
+
+  unitArtworks UnitArtwork[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, kind])
+}
+
+model BotReaction {
+  id        String   @id @default(cuid())
+  botId     String
+  bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  userId    String
+  kind      String
+  stampCode String?
+  createdAt DateTime @default(now())
+
+  @@unique([botId, userId, kind])
+}
+
+// -----------------------------------------------------------
+// モデレーション・監査
+// -----------------------------------------------------------
+model ModerationLog {
+  id                    String   @id @default(cuid())
+  stage                 String
+  messageId             String?  @unique
+  message               Message? @relation(fields: [messageId], references: [id])
+  pendingInputEncrypted String?
+  pendingInputIv        String?
+  decision              String
+  categories            String   @default("[]")
+  model                 String
+  reason                String?
+  userId                String
+  createdAt             DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([decision, createdAt])
+}
+
+model IncidentReport {
+  id         String    @id @default(cuid())
+  severity   String
+  kind       String
+  actorId    String?
+  actor      User?     @relation("incidentActor", fields: [actorId], references: [id])
+  subjectId  String?
+  subject    User?     @relation("incidentSubject", fields: [subjectId], references: [id])
+  classId    String?
+  summary    String
+  payload    String?
+  notifiedAt DateTime?
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@index([severity, createdAt])
+  @@index([classId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  target     String?
+  model      String?
+  tokensIn   Int?
+  tokensOut  Int?
+  costEstJpy Int?
+  meta       String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+// -----------------------------------------------------------
+// 探究単元と他者性
+// -----------------------------------------------------------
+model Unit {
+  id              String    @id @default(cuid())
+  classId         String
+  class           Class     @relation(fields: [classId], references: [id])
+  createdById     String
+  createdBy       User      @relation("unitCreator", fields: [createdById], references: [id])
+  title           String
+  primarySubject  String    @default("social-studies")
+  crossCurricular String    @default("[]")
+  themeQuestion   String
+  coreInquiry     String
+  plannedHours    Int
+  startDate       DateTime?
+  endDate         DateTime?
+  status          String    @default("draft")
+  researchMode    Boolean   @default(false)
+  ethicsApproval  String?
+
+  hours           UnitHour[]
+  stances         Stance[]
+  stanceSnapshots StanceSnapshot[]
+  missingVoices   MissingVoiceHypothesis[]
+  reflections     ReflectionEntry[]
+  surveys         SurveyInstrument[]
+  episodes        EpisodeRecord[]
+  cooccurrences   CoOccurrenceSnapshot[]
+  bots            UnitBot[]
+  artworks        UnitArtwork[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId, status])
+}
+
+model UnitHour {
+  id                String    @id @default(cuid())
+  unitId            String
+  unit              Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  hourIndex         Int
+  topic             String
+  aiInsertion       String    @default("none")
+  plannedActivities String
+  scheduledAt       DateTime?
+
+  @@unique([unitId, hourIndex])
+}
+
+model Stance {
+  id             String           @id @default(cuid())
+  unitId         String
+  unit           Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  label          String
+  summary        String
+  proposedBy     String
+  proposerUserId String?
+  isMajority     Boolean          @default(false)
+  isFromAI       Boolean          @default(false)
+  color          String?
+  icon           String?
+  createdAt      DateTime         @default(now())
+  snapshots      StanceSnapshot[]
+
+  @@index([unitId])
+}
+
+model StanceSnapshot {
+  id          String   @id @default(cuid())
+  unitId      String
+  unit        Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation("stanceUser", fields: [userId], references: [id])
+  stanceId    String?
+  stance      Stance?  @relation(fields: [stanceId], references: [id])
+  customLabel String?
+  strength    Int
+  reasoning   String
+  phase       String
+  source      String   @default("self")
+  createdAt   DateTime @default(now())
+
+  @@index([unitId, userId, createdAt])
+}
+
+model MissingVoiceHypothesis {
+  id               String   @id @default(cuid())
+  unitId           String
+  unit             Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  userId           String
+  askedPrompt      String
+  aiResponseDigest String
+  hypothesisText   String
+  evidence         String?
+  shared           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([unitId, userId])
+}
+
+model ReflectionEntry {
+  id              String   @id @default(cuid())
+  unitId          String
+  unit            Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  userId          String
+  hourIndex       Int?
+  prompt          String
+  text            String
+  wordCount       Int
+  standstillWords String   @default("[]")
+  standstillCount Int      @default(0)
+  phase           String
+  createdAt       DateTime @default(now())
+
+  @@index([unitId, userId, createdAt])
+}
+
+model SurveyInstrument {
+  id        String           @id @default(cuid())
+  unitId    String
+  unit      Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  questions String
+  openAt    DateTime?
+  closeAt   DateTime?
+  responses SurveyResponse[]
+
+  @@unique([unitId, kind])
+}
+
+model SurveyResponse {
+  id           String           @id @default(cuid())
+  instrumentId String
+  instrument   SurveyInstrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  userId       String
+  answers      String
+  submittedAt  DateTime         @default(now())
+
+  @@unique([instrumentId, userId])
+}
+
+model EpisodeRecord {
+  id               String   @id @default(cuid())
+  unitId           String
+  unit             Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  childAnonymousId String
+  title            String
+  narrative        String
+  sourceKind       String
+  sourceRefs       String   @default("[]")
+  tags             String   @default("[]")
+  aiDraftedBy      String?
+  editedById       String?
+  status           String   @default("draft")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([unitId, status])
+}
+
+model CoOccurrenceSnapshot {
+  id            String   @id @default(cuid())
+  unitId        String
+  unit          Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  phase         String
+  topTerms      String
+  cooccurrences String
+  variantTerms  String   @default("[]")
+  corpus        String
+  createdAt     DateTime @default(now())
+
+  @@unique([unitId, phase, corpus])
+}
+
+model UnitBot {
+  unitId  String
+  botId   String
+  unit    Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  bot     Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  addedBy String
+  addedAt DateTime @default(now())
+
+  @@id([unitId, botId])
+}
+
+model UnitArtwork {
+  unitId    String
+  artworkId String
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  artwork   Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  role      String
+  addedAt   DateTime @default(now())
+
+  @@id([unitId, artworkId])
+}
+
+// -----------------------------------------------------------
+// 認証(Auth.js 用、Phase 1 で Credentials + Email)
+// -----------------------------------------------------------
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
