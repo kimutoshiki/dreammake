@@ -22,7 +22,9 @@ const PALETTE = [
 
 const WIDTHS = [2, 5, 10, 18, 30];
 
-export function DrawClient() {
+type Photo = { id: string; title: string; url: string };
+
+export function DrawClient({ photos = [] }: { photos?: Photo[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -33,25 +35,69 @@ export function DrawClient() {
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
+  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
 
   // キャンバスの 解像度を ビューポートに合わせて初期化
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ratio = window.devicePixelRatio || 1;
-    const width = Math.min(canvas.clientWidth, 1200);
-    const height = Math.round(width * 0.66);
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    canvas.style.height = `${height}px`;
+    const wPx = Math.min(canvas.clientWidth, 1200);
+    const hPx = Math.round(wPx * 0.66);
+    canvas.width = wPx * ratio;
+    canvas.height = hPx * ratio;
+    canvas.style.height = `${hPx}px`;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.scale(ratio, ratio);
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, wPx, hPx);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
   }, []);
+
+  async function applyBackground(url: string) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    const wPx = Math.min(canvas.clientWidth, 1200);
+    const hPx = Math.round(wPx * 0.66);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 既存のストロークは 一旦 ホワイトで クリア(透明ではなく、白で塗り直す → 写真の上から描ける)
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    ctx.scale(ratio, ratio);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('画像を 読み込めなかったよ'));
+    });
+    // cover で 敷く
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const scale = Math.max(wPx / iw, hPx / ih);
+    const dw = iw * scale;
+    const dh = ih * scale;
+    const dx = (wPx - dw) / 2;
+    const dy = (hPx - dh) / 2;
+    // うっすら 敷く(50% 透明)ので、児童の 線が 見やすい
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+
+    setBackgroundUrl(url);
+    setShowPhotoPicker(false);
+  }
 
   function pointerPos(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!;
@@ -65,7 +111,6 @@ export function DrawClient() {
     canvas.setPointerCapture(e.pointerId);
     drawingRef.current = true;
     lastPointRef.current = pointerPos(e);
-    // 点を 1 つ打つ
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.beginPath();
@@ -92,7 +137,6 @@ export function DrawClient() {
     ctx.moveTo(last.x, last.y);
     ctx.lineTo(p.x, p.y);
     ctx.strokeStyle = erasing ? '#FFFFFF' : color;
-    // Apple Pencil 等の 筆圧に対応
     const pressure =
       e.pointerType === 'pen' && e.pressure > 0 ? e.pressure : 0.6;
     ctx.lineWidth = Math.max(1, width * (0.6 + pressure));
@@ -122,6 +166,7 @@ export function DrawClient() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
     ctx.scale(ratio, ratio);
+    setBackgroundUrl(null);
   }
 
   async function save() {
@@ -163,6 +208,48 @@ export function DrawClient() {
         className="block w-full touch-none rounded-2xl border-2 border-kid-ink/10 bg-white"
         style={{ touchAction: 'none' }}
       />
+
+      {photos.length > 0 && (
+        <div className="mt-3 flex items-center gap-2">
+          <Button
+            type="button"
+            variant={backgroundUrl ? 'primary' : 'ghost'}
+            onClick={() => setShowPhotoPicker((v) => !v)}
+          >
+            📷 {backgroundUrl ? 'しゃしんを かえる' : 'しゃしんを かさねる'}
+          </Button>
+          {backgroundUrl && (
+            <Button type="button" variant="ghost" onClick={clearAll}>
+              🗑️ しゃしんを けす
+            </Button>
+          )}
+        </div>
+      )}
+
+      {showPhotoPicker && (
+        <div className="mt-3 rounded-2xl bg-kid-soft p-3">
+          <p className="text-xs text-kid-ink/60">
+            取材で とった しゃしんから えらんで、その上に かけるよ
+          </p>
+          <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {photos.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => applyBackground(p.url)}
+                className="overflow-hidden rounded-xl border-2 border-kid-ink/10 hover:border-kid-primary"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={p.url}
+                  alt={p.title}
+                  className="aspect-square w-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-2">
         {PALETTE.map((c) => (

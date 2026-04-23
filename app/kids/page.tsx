@@ -60,8 +60,14 @@ const CREATIVE_APPS: Array<{
     href: '/kids/create/music',
     icon: '🎵',
     title: 'おんがくを つくる',
-    desc: 'もうすこしで 使えるよ',
-    disabled: true,
+    desc: 'ドラムと メロディで 2 小節の 曲',
+  },
+  {
+    href: '/kids/journey',
+    icon: '🗓️',
+    title: 'わたしの 学びジャーニー',
+    desc: '1 週間の あゆみ → Docs に 書き出せる',
+    badge: 'Docs 連携',
   },
   {
     href: '/kids/create/game',

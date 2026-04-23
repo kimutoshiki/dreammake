@@ -134,11 +134,12 @@ pnpm dev
 | 📷 | しゃしん | カメラで写真を撮る | 背面カメラ + Canvas キャプチャ |
 | 🎥 | どうが | カメラ+マイクで動画を撮る(最大 3 分) | MediaRecorder + getUserMedia |
 | 🎙️ | ろくおん + もじおこし | 声を録音し**オンデバイスで文字おこし**(Web Speech)、CSV/クリップボードでスプシへ | MediaRecorder + `webkitSpeechRecognition` |
-| 🎨 | おえかき | 指や Apple Pencil で描画(筆圧対応) | Pointer Events + Canvas(touch-action:none) |
+| 🎨 | **おえかき**(写真トレース対応) | 指や Apple Pencil で描画(筆圧対応)。取材写真を 50% 透過で敷いて注釈も可 | Pointer Events + Canvas(touch-action:none) |
 | 🧩 | クイズをつくる | ノーコードで出題・選択肢・正解を並べ、**その場で試し遊び** | React state マシン、条件分岐の体験 |
 | 🖼️ | **AI に絵をかいてもらう** | 日本語で書いた内容を Claude Haiku が安全化+英訳 → **Gemini (Imagen 3)** で生成 → 保存 | Claude API + `@google/genai` |
 | 📒 | **記録ノート** | 取材・観察した写真 / 録音(+文字起こし)/ お絵かき / テキストを 1 枚のカードに束ね、**ボタン 1 つで先生の Google ドキュメントに書き出し** | `/kids/notebook` + Apps Script |
-| 🎵 | おんがくをつくる | 準備中(録音/お絵かきアプリに誘導) | — |
+| 🎵 | **おんがくをつくる** | 8 ステップ × 4 ドラム + ペンタトニック メロディで 2 小節の曲、**Tone.Offline で WAV 書き出し** | Tone.js + WAV エンコーダ |
+| 🗓️ | **わたしの学びジャーニー** | 1 週間 / 1 ヶ月 / ぜんぶ の活動を まとめ、**Google ドキュメントに書き出し** | Apps Script |
 | 🎮 | ゲームをつくる | 準備中(クイズ作成に誘導) | — |
 | 🗂️ | マイさくひん | これまで作ったものをぜんぶ見る | `/kids/gallery` |
 

@@ -1,35 +1,23 @@
-import Link from 'next/link';
 import { Card, CardTitle } from '@/components/ui/Card';
+import { MusicMakerClient } from './MusicMakerClient';
 
 export default function MusicPage() {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+    <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
       <Card>
-        <p className="text-xs text-kid-ink/60">🎵 おんがく</p>
-        <CardTitle className="mt-1">もうすこしで つかえるよ</CardTitle>
-        <p className="mt-3 text-sm text-kid-ink/80">
-          iPad の マイクで 歌を ろくおんしたり、「やさしい・元気・しずか」などの
-          気持ちから 30 秒の BGM を 自動で 作れる 機能を 準備中です。
+        <p className="text-xs text-kid-ink/60">🎵 おんがくを つくる</p>
+        <CardTitle className="mt-1">ドラムと メロディで リズムを つくろう</CardTitle>
+        <p className="mt-2 text-sm text-kid-ink/80">
+          タップで 音を 置いて、▶️ で 聴いてみよう。気に入ったら
+          WAV ファイルとして 保存して、マイさくひんに 追加できるよ。
         </p>
-        <p className="mt-3 text-sm text-kid-ink/80">
-          いまは「🎙️ ろくおん + もじおこし」で 歌声や 音を のこせます。
-          「🎨 おえかき」で 気持ちの 色を 描けます。
+        <p className="mt-2 rounded-xl bg-amber-50 p-2 text-xs text-amber-900">
+          ⚠️ 初回は iPad が マナーモードだと 音が出ないよ。画面タップで 音量を ON にしてね。
         </p>
-        <div className="mt-6 flex gap-2">
-          <Link
-            href="/kids/create/audio"
-            className="inline-flex rounded-2xl bg-kid-soft px-4 py-2 text-sm hover:bg-kid-primary/20"
-          >
-            🎙️ ろくおん アプリへ
-          </Link>
-          <Link
-            href="/kids"
-            className="inline-flex rounded-2xl bg-kid-soft px-4 py-2 text-sm hover:bg-kid-primary/20"
-          >
-            ← マイハブへ
-          </Link>
-        </div>
       </Card>
+      <div className="mt-4">
+        <MusicMakerClient />
+      </div>
     </main>
   );
 }
