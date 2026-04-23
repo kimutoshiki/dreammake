@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { requireStudent } from '@/lib/auth/require';
+import { getCurrentKid } from '@/lib/context/kid';
 import { Card, CardTitle } from '@/components/ui/Card';
 
 export default async function KidsHomePage() {
-  const { user } = await requireStudent();
+  const { current } = await getCurrentKid();
+  if (!current) return null;
 
   const memberships = await prisma.classMembership.findMany({
-    where: { userId: user.id, role: 'student' },
+    where: { userId: current.id, role: 'student' },
     include: {
       class: {
         include: {
@@ -21,7 +22,7 @@ export default async function KidsHomePage() {
   });
 
   const myBots = await prisma.bot.findMany({
-    where: { ownerId: user.id },
+    where: { ownerId: current.id },
     include: { _count: { select: { knowledgeCards: true } } },
     orderBy: { updatedAt: 'desc' },
   });
@@ -29,7 +30,7 @@ export default async function KidsHomePage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <h2 className="text-2xl font-bold">
-        こんにちは、{user.nickname}さん 👋
+        こんにちは、{current.nickname}さん 👋
       </h2>
 
       <section className="mt-6">
@@ -45,9 +46,7 @@ export default async function KidsHomePage() {
                 className="block"
               >
                 <Card className="transition-shadow hover:shadow-md">
-                  <div className="text-xs text-kid-ink/60">
-                    {m.class.name}
-                  </div>
+                  <div className="text-xs text-kid-ink/60">{m.class.name}</div>
                   <CardTitle className="mt-1">{u.title}</CardTitle>
                   <p className="mt-2 text-sm text-kid-ink/80">
                     🎯 {u.themeQuestion}
@@ -55,6 +54,13 @@ export default async function KidsHomePage() {
                 </Card>
               </Link>
             )),
+          )}
+          {memberships.every((m) => m.class.units.length === 0) && (
+            <Card>
+              <p className="text-sm text-kid-ink/70">
+                まだ 公開されている単元が ないよ。せんせいが 単元を 公開したら ここに 出るよ。
+              </p>
+            </Card>
           )}
         </div>
       </section>

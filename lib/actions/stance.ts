@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentKid } from '@/lib/context/kid';
 import { moderateInput } from '@/lib/moderation/input';
 
 const Schema = z.object({
@@ -16,9 +16,9 @@ const Schema = z.object({
 });
 
 export async function recordStance(formData: FormData) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return { ok: false as const, message: 'ログインして ください' };
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return { ok: false as const, message: '児童が 選ばれていないよ' };
   }
   const parsed = Schema.safeParse({
     unitId: formData.get('unitId'),
@@ -46,7 +46,7 @@ export async function recordStance(formData: FormData) {
       categories: JSON.stringify(mod.categories),
       model: mod.model,
       reason: mod.reason,
-      userId: session.userId,
+      userId: kid.id,
     },
   });
   if (mod.decision === 'hard-block') {
@@ -59,7 +59,7 @@ export async function recordStance(formData: FormData) {
   await prisma.stanceSnapshot.create({
     data: {
       unitId: parsed.data.unitId,
-      userId: session.userId,
+      userId: kid.id,
       stanceId: parsed.data.stanceId ?? null,
       customLabel: parsed.data.customLabel ?? null,
       strength: parsed.data.strength,

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentTeacher } from '@/lib/context/teacher';
 
 const CreateUnitSchema = z.object({
   classId: z.string().min(1),
@@ -16,9 +16,9 @@ const CreateUnitSchema = z.object({
 });
 
 export async function createUnit(formData: FormData) {
-  const session = await readSession();
-  if (!session || session.role !== 'teacher') {
-    return { ok: false as const, message: 'ログインしてください' };
+  const { current: teacher } = await getCurrentTeacher();
+  if (!teacher) {
+    return { ok: false as const, message: '教員が 選ばれていません' };
   }
   const parsed = CreateUnitSchema.safeParse({
     classId: formData.get('classId'),
@@ -34,7 +34,7 @@ export async function createUnit(formData: FormData) {
   const unit = await prisma.unit.create({
     data: {
       classId: parsed.data.classId,
-      createdById: session.userId,
+      createdById: teacher.id,
       title: parsed.data.title,
       themeQuestion: parsed.data.themeQuestion,
       coreInquiry: parsed.data.coreInquiry ?? '',
@@ -43,7 +43,6 @@ export async function createUnit(formData: FormData) {
       status: 'draft',
     },
   });
-  // 時数を既定で並べる
   for (let i = 1; i <= parsed.data.plannedHours; i++) {
     await prisma.unitHour.create({
       data: {
@@ -65,9 +64,9 @@ const UpdateStatusSchema = z.object({
 });
 
 export async function updateUnitStatus(input: z.infer<typeof UpdateStatusSchema>) {
-  const session = await readSession();
-  if (!session || session.role !== 'teacher') {
-    return { ok: false as const, message: 'ログインしてください' };
+  const { current: teacher } = await getCurrentTeacher();
+  if (!teacher) {
+    return { ok: false as const, message: '教員が 選ばれていません' };
   }
   const parsed = UpdateStatusSchema.safeParse(input);
   if (!parsed.success) {
@@ -89,9 +88,9 @@ const AddStanceSchema = z.object({
 });
 
 export async function addStance(formData: FormData) {
-  const session = await readSession();
-  if (!session || session.role !== 'teacher') {
-    return { ok: false as const, message: 'ログインしてください' };
+  const { current: teacher } = await getCurrentTeacher();
+  if (!teacher) {
+    return { ok: false as const, message: '教員が 選ばれていません' };
   }
   const parsed = AddStanceSchema.safeParse({
     unitId: formData.get('unitId'),
@@ -109,7 +108,7 @@ export async function addStance(formData: FormData) {
       summary: parsed.data.summary,
       icon: parsed.data.icon || null,
       proposedBy: 'teacher',
-      proposerUserId: session.userId,
+      proposerUserId: teacher.id,
     },
   });
   revalidatePath(`/teacher/units/${parsed.data.unitId}`);
@@ -122,9 +121,9 @@ const UpdateHourAISchema = z.object({
 });
 
 export async function updateHourAI(input: z.infer<typeof UpdateHourAISchema>) {
-  const session = await readSession();
-  if (!session || session.role !== 'teacher') {
-    return { ok: false as const, message: 'ログインしてください' };
+  const { current: teacher } = await getCurrentTeacher();
+  if (!teacher) {
+    return { ok: false as const, message: '教員が 選ばれていません' };
   }
   const parsed = UpdateHourAISchema.safeParse(input);
   if (!parsed.success) {

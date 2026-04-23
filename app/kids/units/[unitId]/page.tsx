@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { requireStudent } from '@/lib/auth/require';
+import { getCurrentKid } from '@/lib/context/kid';
 import { getUnitForStudent } from '@/lib/queries/unit';
 import { prisma } from '@/lib/prisma';
 import { Card, CardTitle } from '@/components/ui/Card';
@@ -17,7 +17,8 @@ export default async function UnitTopPage({
 }: {
   params: { unitId: string };
 }) {
-  const { user } = await requireStudent();
+  const { current: user } = await getCurrentKid();
+  if (!user) return null;
   const unit = await getUnitForStudent(params.unitId, user.id);
   if (!unit) notFound();
 
@@ -77,6 +78,18 @@ export default async function UnitTopPage({
             desc="単元が 終わったら こたえるよ"
           />
         )}
+        <ActionLink
+          href={`/kids/units/${unit.id}/quiz`}
+          icon="🎮"
+          title="立場クイズ・少数派さがし"
+          desc="「なぜ そう思う?」から 立場を あててみよう"
+        />
+        <ActionLink
+          href={`/kids/units/${unit.id}/summary`}
+          icon="📊"
+          title="この単元の まとめ"
+          desc="立場分布・立ち止まり語・声の仮説を 一目で"
+        />
       </div>
 
       <section className="mt-8">

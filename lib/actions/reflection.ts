@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentKid } from '@/lib/context/kid';
 import { moderateInput } from '@/lib/moderation/input';
 import { detectStandstillWords } from '@/lib/research/standstill-rules';
 
@@ -16,9 +16,9 @@ const Schema = z.object({
 });
 
 export async function saveReflection(formData: FormData) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return { ok: false as const, message: 'ログインして ください' };
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return { ok: false as const, message: '児童が 選ばれていないよ' };
   }
   const parsed = Schema.safeParse({
     unitId: formData.get('unitId'),
@@ -42,7 +42,7 @@ export async function saveReflection(formData: FormData) {
       categories: JSON.stringify(mod.categories),
       model: mod.model,
       reason: mod.reason,
-      userId: session.userId,
+      userId: kid.id,
     },
   });
   if (mod.decision === 'hard-block') {
@@ -57,7 +57,7 @@ export async function saveReflection(formData: FormData) {
   const entry = await prisma.reflectionEntry.create({
     data: {
       unitId: parsed.data.unitId,
-      userId: session.userId,
+      userId: kid.id,
       prompt: parsed.data.prompt,
       text: parsed.data.text,
       wordCount: parsed.data.text.length,

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { requireStudent } from '@/lib/auth/require';
+import { getCurrentKid } from '@/lib/context/kid';
 import { prisma } from '@/lib/prisma';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { AddKnowledgeForm } from './AddKnowledgeForm';
@@ -10,7 +10,8 @@ export default async function KnowledgePage({
 }: {
   params: { botId: string };
 }) {
-  const { user } = await requireStudent();
+  const { current: user } = await getCurrentKid();
+  if (!user) return null;
   const bot = await prisma.bot.findUnique({
     where: { id: params.botId },
     include: {

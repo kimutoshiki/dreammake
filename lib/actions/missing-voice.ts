@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentKid } from '@/lib/context/kid';
 import { moderateInput } from '@/lib/moderation/input';
 
 const Schema = z.object({
@@ -16,9 +16,9 @@ const Schema = z.object({
 });
 
 export async function saveMissingVoiceHypothesis(input: z.infer<typeof Schema>) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return { ok: false as const, message: 'ログインして ください' };
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return { ok: false as const, message: '児童が 選ばれていないよ' };
   }
   const parsed = Schema.safeParse(input);
   if (!parsed.success) {
@@ -36,7 +36,7 @@ export async function saveMissingVoiceHypothesis(input: z.infer<typeof Schema>) 
       categories: JSON.stringify(mod.categories),
       model: mod.model,
       reason: mod.reason,
-      userId: session.userId,
+      userId: kid.id,
     },
   });
   if (mod.decision === 'hard-block') {
@@ -50,7 +50,7 @@ export async function saveMissingVoiceHypothesis(input: z.infer<typeof Schema>) 
   await prisma.missingVoiceHypothesis.create({
     data: {
       unitId: parsed.data.unitId,
-      userId: session.userId,
+      userId: kid.id,
       askedPrompt: parsed.data.askedPrompt,
       aiResponseDigest: parsed.data.aiResponseDigest,
       hypothesisText: parsed.data.hypothesisText,

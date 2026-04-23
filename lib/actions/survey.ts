@@ -3,15 +3,14 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentKid } from '@/lib/context/kid';
+import { getCurrentTeacher } from '@/lib/context/teacher';
 import { buildDefaultSurvey } from '@/lib/research/default-surveys';
 
 /** 教員:既定テンプレから単元の pre/post サーベイを作成(既にあれば何もしない)。 */
 export async function ensureDefaultSurveys(unitId: string) {
-  const session = await readSession();
-  if (!session || session.role !== 'teacher') {
-    return { ok: false as const };
-  }
+  const { current: teacher } = await getCurrentTeacher();
+  if (!teacher) return { ok: false as const };
   const unit = await prisma.unit.findUnique({
     where: { id: unitId },
     include: { stances: true },
@@ -48,9 +47,9 @@ const SubmitSchema = z.object({
 });
 
 export async function submitSurveyResponse(input: z.infer<typeof SubmitSchema>) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return { ok: false as const, message: 'ログインして ください' };
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return { ok: false as const, message: '児童が 選ばれていないよ' };
   }
   const parsed = SubmitSchema.safeParse(input);
   if (!parsed.success) {
@@ -61,7 +60,7 @@ export async function submitSurveyResponse(input: z.infer<typeof SubmitSchema>) 
     where: {
       instrumentId_userId: {
         instrumentId: parsed.data.instrumentId,
-        userId: session.userId,
+        userId: kid.id,
       },
     },
     update: {
@@ -70,7 +69,7 @@ export async function submitSurveyResponse(input: z.infer<typeof SubmitSchema>) 
     },
     create: {
       instrumentId: parsed.data.instrumentId,
-      userId: session.userId,
+      userId: kid.id,
       answers: JSON.stringify(parsed.data.answers),
     },
   });

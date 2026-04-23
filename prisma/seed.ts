@@ -3,15 +3,14 @@
  * `pnpm db:seed` で投入。`pnpm db:reset && pnpm db:seed` で綺麗に入れ直せる。
  *
  * 学校 1 / クラス 1 / 教員 1 / 児童 3 / 中単元 1 / 立場 5 / ボット 1(ナレッジ4枚) を作成。
+ *
+ * 認証はアプリから外したため、ここではパスワードハッシュを 作成しない。
+ * 児童・教員の どちらに なるかは、ブラウザの Cookie による簡易セレクタで決まる
+ * (lib/context/kid.ts, lib/context/teacher.ts)。
  */
 import { PrismaClient } from '@prisma/client';
-import {
-  canonicalizeEmojiPassword,
-  hashPassword,
-} from '../lib/auth/password';
 
 const prisma = new PrismaClient();
-const PEPPER = process.env.RESEARCH_ANONYMOUS_ID_PEPPER ?? '';
 
 async function main() {
   console.log('🌱 シードを開始します…');
@@ -39,7 +38,6 @@ async function main() {
   });
 
   // --- Teacher ---
-  const teacherPw = hashPassword('teacher-demo', PEPPER);
   const teacher = await prisma.user.upsert({
     where: { email: 'teacher@demo.local' },
     update: {},
@@ -48,8 +46,6 @@ async function main() {
       role: 'teacher',
       schoolId: school.id,
       nickname: 'せんせい',
-      emojiPasswordHash: teacherPw.hash,
-      emojiPasswordSalt: teacherPw.salt,
     },
   });
   await prisma.classMembership.upsert({
@@ -62,28 +58,33 @@ async function main() {
   const students: Array<{
     handle: string;
     nickname: string;
-    emoji: string[];
     avatarSeed: string;
   }> = [
-    { handle: 's-4-01-001', nickname: 'みさき', emoji: ['fish', 'cherry', 'apple'], avatarSeed: 'misaki' },
-    { handle: 's-4-01-002', nickname: 'たけし', emoji: ['cat', 'moon', 'star'],   avatarSeed: 'takeshi' },
-    { handle: 's-4-01-003', nickname: 'ゆい',   emoji: ['butterfly', 'sun', 'rainbow'], avatarSeed: 'yui' },
+    { handle: 's-4-01-001', nickname: 'みさき', avatarSeed: 'misaki' },
+    { handle: 's-4-01-002', nickname: 'たけし', avatarSeed: 'takeshi' },
+    { handle: 's-4-01-003', nickname: 'ゆい',   avatarSeed: 'yui' },
   ];
 
   const studentIds: Record<string, string> = {};
   for (const s of students) {
-    const canonical = canonicalizeEmojiPassword(s.emoji);
-    const pw = hashPassword(canonical, PEPPER);
-
-    const gradeProfile = await prisma.gradeProfile.create({
-      data: {
-        band: 'middle',
-        gradeYear: 4,
-        furiganaMode: 'above-grade',
-        voiceFirst: false,
-        maxQaChars: 200,
-      },
+    const existing = await prisma.user.findUnique({
+      where: { handle: s.handle },
+      include: { gradeProfile: true },
     });
+
+    let gradeProfileId = existing?.gradeProfileId ?? null;
+    if (!gradeProfileId) {
+      const gp = await prisma.gradeProfile.create({
+        data: {
+          band: 'middle',
+          gradeYear: 4,
+          furiganaMode: 'above-grade',
+          voiceFirst: false,
+          maxQaChars: 200,
+        },
+      });
+      gradeProfileId = gp.id;
+    }
 
     const user = await prisma.user.upsert({
       where: { handle: s.handle },
@@ -93,10 +94,8 @@ async function main() {
         schoolId: school.id,
         handle: s.handle,
         nickname: s.nickname,
-        emojiPasswordHash: pw.hash,
-        emojiPasswordSalt: pw.salt,
         avatarSeed: s.avatarSeed,
-        gradeProfileId: gradeProfile.id,
+        gradeProfileId,
       },
     });
     await prisma.classMembership.upsert({
@@ -278,12 +277,9 @@ async function main() {
 
   console.log('🌱 シード完了');
   console.log('');
-  console.log('  学校コード: demo-school');
-  console.log('  教員ログイン: teacher@demo.local / teacher-demo');
-  console.log('  児童ログイン:');
-  for (const s of students) {
-    console.log(`    ${s.nickname}  ID=${s.handle}  絵柄=[${s.emoji.join(' ')}]`);
-  }
+  console.log('  認証なしで動きます。');
+  console.log('  http://localhost:3000/kids      → 児童用(上の切替で 3 人を選択)');
+  console.log('  http://localhost:3000/teacher   → 先生用');
 }
 
 main()

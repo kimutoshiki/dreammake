@@ -1,18 +1,19 @@
-import { requireTeacher } from '@/lib/auth/require';
-import { Nav } from '@/components/Nav';
+import { notFound } from 'next/navigation';
+import { getCurrentTeacher } from '@/lib/context/teacher';
+import { TeacherNav } from '@/components/TeacherNav';
 
 export default async function TeacherLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = await requireTeacher();
+  const { current } = await getCurrentTeacher();
+  if (!current) notFound();
   return (
     <div data-grade="upper">
-      <Nav
-        title="先生ダッシュボード"
-        userLabel={user.nickname ?? user.email ?? '先生'}
-        role="teacher"
+      <TeacherNav
+        title="先生のダッシュボード"
+        teacherLabel={current.nickname ?? current.email ?? '先生'}
       />
       {children}
     </div>

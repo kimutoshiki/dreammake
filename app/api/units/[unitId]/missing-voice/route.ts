@@ -5,7 +5,7 @@
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentKid } from '@/lib/context/kid';
 import { prisma } from '@/lib/prisma';
 import { completeJson } from '@/lib/llm/anthropic';
 import { checkLLMRateLimit, rateLimitMessageJa } from '@/lib/rate-limit';
@@ -55,11 +55,11 @@ export async function POST(
   req: Request,
   { params }: { params: { unitId: string } },
 ) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return NextResponse.json({ error: 'not authenticated' }, { status: 401 });
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return NextResponse.json({ error: 'no kid selected' }, { status: 400 });
   }
-  const rl = await checkLLMRateLimit(session.userId);
+  const rl = await checkLLMRateLimit(kid.id);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: rateLimitMessageJa(rl), rateLimited: true },
@@ -80,12 +80,8 @@ export async function POST(
     return NextResponse.json({ error: 'unit not found' }, { status: 404 });
   }
 
-  const student = await prisma.user.findUnique({
-    where: { id: session.userId },
-    include: { gradeProfile: true },
-  });
   const band =
-    (student?.gradeProfile?.band as 'lower' | 'middle' | 'upper' | undefined) ??
+    (kid.gradeProfile?.band as 'lower' | 'middle' | 'upper' | undefined) ??
     'middle';
 
   const system = buildMissingVoiceSystem({
@@ -121,7 +117,7 @@ export async function POST(
 
     await prisma.auditLog.create({
       data: {
-        actorId: session.userId,
+        actorId: kid.id,
         action: 'llm-call',
         target: `Unit:${unit.id}:missing-voice`,
         model: 'claude-sonnet',

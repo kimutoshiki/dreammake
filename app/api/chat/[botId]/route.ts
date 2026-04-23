@@ -3,14 +3,16 @@
  *
  * 手順:
  *  1. 入力のモデレーション(ルール+Haiku)
- *     - hard-block: ModerationLog に暗号化保存、エラー応答を返して終了
+ *     - hard-block: ModerationLog に記録し エラー応答を返して終了
  *  2. ボットのナレッジから System プロンプトを組み立て、Claude Sonnet にストリーム要求
  *  3. 応答の <cite> タグを解釈し、出典をアプリ層で機械付与
  *  4. Message を DB に保存、AuditLog / ModerationLog にも記録
+ *
+ * 認証はなく、「現在選ばれている児童」が誰かを lib/context/kid.ts から取得する。
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentKid } from '@/lib/context/kid';
 import { prisma } from '@/lib/prisma';
 import { stream } from '@/lib/llm/anthropic';
 import { appendCitation, parseCiteTag } from '@/lib/llm/cite';
@@ -38,13 +40,12 @@ export async function POST(
   req: Request,
   { params }: { params: { botId: string } },
 ) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return NextResponse.json({ error: 'not authenticated' }, { status: 401 });
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return NextResponse.json({ error: 'no kid selected' }, { status: 400 });
   }
 
-  // レート制限チェック(日次呼び出し上限)
-  const rl = await checkLLMRateLimit(session.userId);
+  const rl = await checkLLMRateLimit(kid.id);
   if (!rl.allowed) {
     return NextResponse.json(
       { blocked: true, reason: rateLimitMessageJa(rl), rateLimited: true },
@@ -69,8 +70,7 @@ export async function POST(
   if (!bot) {
     return NextResponse.json({ error: 'bot not found' }, { status: 404 });
   }
-  // 所有者 or 公開ボットのみ
-  if (!bot.isPublic && bot.ownerId !== session.userId) {
+  if (!bot.isPublic && bot.ownerId !== kid.id) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
@@ -86,7 +86,7 @@ export async function POST(
       categories: JSON.stringify(mod.categories),
       model: mod.model,
       reason: mod.reason,
-      userId: session.userId,
+      userId: kid.id,
     },
   });
   if (mod.decision === 'hard-block') {
@@ -94,7 +94,7 @@ export async function POST(
       data: {
         severity: 'alert',
         kind: 'hard-block',
-        actorId: session.userId,
+        actorId: kid.id,
         summary: `チャット入力がハードブロック: ${mod.reason}`,
         payload: JSON.stringify({ categories: mod.categories }),
       },
@@ -106,12 +106,8 @@ export async function POST(
   }
 
   // --- 2. システムプロンプト構築 ---
-  const student = await prisma.user.findUnique({
-    where: { id: session.userId },
-    include: { gradeProfile: true },
-  });
   const band =
-    (student?.gradeProfile?.band as 'lower' | 'middle' | 'upper' | undefined) ??
+    (kid.gradeProfile?.band as 'lower' | 'middle' | 'upper' | undefined) ??
     'middle';
 
   const systemBlocks = buildBotRuntimeSystem({
@@ -198,7 +194,7 @@ export async function POST(
         const conversation = await prisma.conversation.create({
           data: {
             botId: bot.id,
-            userId: session.userId,
+            userId: kid.id,
             gradeProfileSnapshot: JSON.stringify({ band }),
           },
         });
@@ -222,7 +218,7 @@ export async function POST(
         });
         await prisma.auditLog.create({
           data: {
-            actorId: session.userId,
+            actorId: kid.id,
             action: 'llm-call',
             target: `Bot:${bot.id}`,
             model: 'claude-sonnet',

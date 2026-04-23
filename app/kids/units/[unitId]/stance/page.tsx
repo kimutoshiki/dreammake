@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { requireStudent } from '@/lib/auth/require';
+import { getCurrentKid } from '@/lib/context/kid';
 import { getUnitForStudent } from '@/lib/queries/unit';
 import { prisma } from '@/lib/prisma';
 import { Card, CardTitle } from '@/components/ui/Card';
@@ -10,7 +10,8 @@ export default async function StancePage({
 }: {
   params: { unitId: string };
 }) {
-  const { user } = await requireStudent();
+  const { current: user } = await getCurrentKid();
+  if (!user) return null;
   const unit = await getUnitForStudent(params.unitId, user.id);
   if (!unit) notFound();
 

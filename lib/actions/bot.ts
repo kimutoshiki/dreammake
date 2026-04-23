@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { readSession } from '@/lib/auth/session';
+import { getCurrentKid } from '@/lib/context/kid';
 import { moderateInput } from '@/lib/moderation/input';
 
 const CreateBotSchema = z.object({
@@ -16,9 +16,9 @@ const CreateBotSchema = z.object({
 });
 
 export async function createBot(formData: FormData) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return { ok: false as const, message: 'ログインして ください' };
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return { ok: false as const, message: '児童が 選ばれていないよ' };
   }
   const parsed = CreateBotSchema.safeParse({
     name: formData.get('name'),
@@ -32,7 +32,7 @@ export async function createBot(formData: FormData) {
   }
   const bot = await prisma.bot.create({
     data: {
-      ownerId: session.userId,
+      ownerId: kid.id,
       name: parsed.data.name,
       topic: parsed.data.topic,
       persona: parsed.data.persona,
@@ -57,9 +57,9 @@ const AddKnowledgeSchema = z.object({
 });
 
 export async function addKnowledgeCard(formData: FormData) {
-  const session = await readSession();
-  if (!session || session.role !== 'student') {
-    return { ok: false as const, message: 'ログインして ください' };
+  const { current: kid } = await getCurrentKid();
+  if (!kid) {
+    return { ok: false as const, message: '児童が 選ばれていないよ' };
   }
   const parsed = AddKnowledgeSchema.safeParse({
     botId: formData.get('botId'),
@@ -75,11 +75,10 @@ export async function addKnowledgeCard(formData: FormData) {
   }
 
   const bot = await prisma.bot.findUnique({ where: { id: parsed.data.botId } });
-  if (!bot || bot.ownerId !== session.userId) {
+  if (!bot || bot.ownerId !== kid.id) {
     return { ok: false as const, message: 'このボットは あなたのボットじゃないよ' };
   }
 
-  // モデレーション
   const mod = await moderateInput({
     text: `${parsed.data.question ?? ''}\n${parsed.data.answer}`,
     stage: 'knowledge',
@@ -91,7 +90,7 @@ export async function addKnowledgeCard(formData: FormData) {
       categories: JSON.stringify(mod.categories),
       model: mod.model,
       reason: mod.reason,
-      userId: session.userId,
+      userId: kid.id,
     },
   });
   if (mod.decision === 'hard-block') {

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { requireTeacher } from '@/lib/auth/require';
+import { getCurrentTeacher } from '@/lib/context/teacher';
 import { getUnitForTeacher } from '@/lib/queries/unit';
 import { prisma } from '@/lib/prisma';
 import { Card, CardTitle } from '@/components/ui/Card';
@@ -10,7 +10,8 @@ export default async function TeacherStancesPage({
 }: {
   params: { unitId: string };
 }) {
-  const { user } = await requireTeacher();
+  const { current: user } = await getCurrentTeacher();
+  if (!user) return null;
   const unit = await getUnitForTeacher(params.unitId, user.id);
   if (!unit) notFound();
 

@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { requireTeacher } from '@/lib/auth/require';
+import { getCurrentTeacher } from '@/lib/context/teacher';
 import { Card, CardTitle } from '@/components/ui/Card';
 
 export default async function TeacherHome() {
-  const { user } = await requireTeacher();
+  const { current: user } = await getCurrentTeacher();
+  if (!user) return null;
 
   const memberships = await prisma.classMembership.findMany({
     where: { userId: user.id, role: 'teacher' },

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { requireTeacher } from '@/lib/auth/require';
+import { getCurrentTeacher } from '@/lib/context/teacher';
 import { createUnit } from '@/lib/actions/unit';
 import { Button } from '@/components/ui/Button';
 import { Card, CardTitle } from '@/components/ui/Card';
@@ -11,7 +11,8 @@ export default async function NewUnitPage({
 }: {
   searchParams: { classId?: string };
 }) {
-  const { user } = await requireTeacher();
+  const { current: user } = await getCurrentTeacher();
+  if (!user) return null;
   const classes = await prisma.classMembership.findMany({
     where: { userId: user.id, role: 'teacher' },
     include: { class: true },

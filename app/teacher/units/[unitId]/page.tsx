@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { requireTeacher } from '@/lib/auth/require';
+import { getCurrentTeacher } from '@/lib/context/teacher';
 import { getUnitForTeacher } from '@/lib/queries/unit';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { UnitEditorClient } from './UnitEditorClient';
@@ -11,7 +11,8 @@ export default async function TeacherUnitPage({
 }: {
   params: { unitId: string };
 }) {
-  const { user } = await requireTeacher();
+  const { current: user } = await getCurrentTeacher();
+  if (!user) return null;
   const unit = await getUnitForTeacher(params.unitId, user.id);
   if (!unit) notFound();
 
