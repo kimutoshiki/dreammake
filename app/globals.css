@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-kid-bg text-kid-ink antialiased;
+    font-feature-settings: 'palt';
+  }
+
+  /* ふりがな(<ruby>)を読みやすく */
+  ruby {
+    ruby-align: center;
+  }
+
+  rt {
+    font-size: 0.6em;
+    color: currentColor;
+    opacity: 0.8;
+  }
+
+  /* 学年プロファイル別のベース文字サイズ */
+  [data-grade='lower'] {
+    font-size: 20px;
+    line-height: 1.8;
+  }
+
+  [data-grade='middle'] {
+    font-size: 17px;
+    line-height: 1.75;
+  }
+
+  [data-grade='upper'] {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+}
+
+@layer components {
+  .btn-kid {
+    @apply inline-flex items-center justify-center rounded-2xl px-6 font-medium
+           transition-colors focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-kid-primary
+           focus-visible:ring-offset-2 disabled:opacity-50;
+  }
+
+  .btn-kid-primary {
+    @apply btn-kid bg-kid-primary text-white hover:bg-kid-primary/90;
+  }
+
+  .btn-kid-ghost {
+    @apply btn-kid border-2 border-kid-ink/10 hover:bg-kid-soft;
+  }
+}
