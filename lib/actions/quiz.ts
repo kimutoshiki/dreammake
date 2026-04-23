@@ -68,7 +68,6 @@ export async function createQuizArtwork(spec: QuizSpec) {
       title: parsed.data.title,
       quizKind: 'self-made',
       quizSpec: JSON.stringify(parsed.data),
-      isPublic: parsed.data.isPublic,
     },
   });
   revalidatePath('/kids');

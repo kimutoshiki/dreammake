@@ -1,0 +1,19 @@
+{
+  "name": "しらべてつくろう!AIラボ",
+  "short_name": "AIラボ",
+  "description": "こどもが iPad で つくる・あそぶ・しらべる",
+  "start_url": "/kids",
+  "display": "standalone",
+  "background_color": "#FFF9F2",
+  "theme_color": "#FF8C42",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

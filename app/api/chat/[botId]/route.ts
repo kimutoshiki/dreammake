@@ -195,7 +195,6 @@ export async function POST(
           data: {
             botId: bot.id,
             userId: kid.id,
-            gradeProfileSnapshot: JSON.stringify({ band }),
           },
         });
         await prisma.message.create({

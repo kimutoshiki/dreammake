@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
 import { Card, CardTitle } from '@/components/ui/Card';
-import { NoteDetailClient } from './NoteDetailClient';
 
 export default async function NotebookDetailPage({
   params,
@@ -15,7 +14,6 @@ export default async function NotebookDetailPage({
 
   const note = await prisma.fieldNote.findUnique({
     where: { id: params.id },
-    include: { unit: { select: { id: true, title: true } } },
   });
   if (!note || note.userId !== current.id) notFound();
 
@@ -42,15 +40,8 @@ export default async function NotebookDetailPage({
           <div>
             <p className="text-xs text-kid-ink/60">📒 記録ノート</p>
             <CardTitle className="mt-1">{note.title}</CardTitle>
-            {note.unit && (
-              <p className="mt-1 text-xs text-kid-ink/60">
-                単元: {note.unit.title}
-              </p>
-            )}
             {note.locationNote && (
-              <p className="mt-1 text-xs text-kid-ink/60">
-                📍 {note.locationNote}
-              </p>
+              <p className="mt-1 text-xs text-kid-ink/60">📍 {note.locationNote}</p>
             )}
             <p className="mt-1 text-[11px] text-kid-ink/50">
               {new Date(note.createdAt).toLocaleString('ja-JP')}
@@ -96,11 +87,7 @@ export default async function NotebookDetailPage({
               </div>
               {a.imageUrl && (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={a.imageUrl}
-                  alt=""
-                  className="mt-2 w-full rounded-xl"
-                />
+                <img src={a.imageUrl} alt="" className="mt-2 w-full rounded-xl" />
               )}
               {a.audioUrl && (
                 <div className="mt-2">
@@ -116,14 +103,6 @@ export default async function NotebookDetailPage({
           ))}
         </section>
       )}
-
-      <div className="mt-6">
-        <NoteDetailClient
-          noteId={note.id}
-          docsUrl={note.docsUrl}
-          docsExportedAt={note.docsExportedAt?.toISOString() ?? null}
-        />
-      </div>
     </main>
   );
 }

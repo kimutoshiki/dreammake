@@ -17,17 +17,6 @@ export default async function EditNotebookPage({
   });
   if (!note || note.userId !== current.id) notFound();
 
-  const units = await prisma.unit.findMany({
-    where: {
-      status: 'active',
-      class: {
-        memberships: { some: { userId: current.id, role: 'student' } },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, title: true },
-  });
-
   const recentArtworks = await prisma.artwork.findMany({
     where: {
       ownerId: current.id,
@@ -53,11 +42,6 @@ export default async function EditNotebookPage({
       <Card>
         <p className="text-xs text-kid-ink/60">📒 記録ノートの へんしゅう</p>
         <CardTitle className="mt-1">{note.title}</CardTitle>
-        <p className="mt-2 text-sm text-kid-ink/70">
-          内容を 書き直したり、新しい しゃしん・ろくおん・おえかきを つけたしたり できるよ。
-          Docs に 書き出した あとに 変えても、同じ ドキュメントは 変わらないので
-          大きな 変更は 新しい ノートに してもいいよ。
-        </p>
       </Card>
       <div className="mt-4">
         <EditNotebookClient
@@ -65,11 +49,9 @@ export default async function EditNotebookPage({
             id: note.id,
             title: note.title,
             notes: note.notes,
-            unitId: note.unitId,
             locationNote: note.locationNote,
           }}
           attachedIds={attachedIds}
-          units={units}
           recentArtworks={recentArtworks.map((a) => ({
             ...a,
             createdAt: a.createdAt.toISOString(),

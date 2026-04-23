@@ -13,7 +13,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
 import { saveKidDataUrl, saveKidUpload } from '@/lib/storage/local';
-import { postToStudentClassSheet } from '@/lib/integrations/sheets';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -117,21 +116,6 @@ export async function POST(req: Request) {
     },
   });
 
-  // 音声 + 文字起こしが ある場合は、スプレッドシートに 自動追記
-  if (kind === 'audio' && transcript) {
-    await postToStudentClassSheet(kid.id, {
-      kind: 'audio',
-      timestamp: artwork.createdAt.toISOString(),
-      student: { nickname: kid.nickname, handle: kid.handle },
-      title,
-      content: transcript,
-      extra: {
-        audio_url: publicUrl,
-        duration_sec: durationSec ?? null,
-        artwork_id: artwork.id,
-      },
-    });
-  }
 
   return NextResponse.json({ ok: true, artworkId: artwork.id, url: publicUrl });
 }

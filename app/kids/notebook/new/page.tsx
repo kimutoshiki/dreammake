@@ -7,17 +7,6 @@ export default async function NewNotebookPage() {
   const { current } = await getCurrentKid();
   if (!current) return null;
 
-  const units = await prisma.unit.findMany({
-    where: {
-      status: 'active',
-      class: {
-        memberships: { some: { userId: current.id, role: 'student' } },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, title: true },
-  });
-
   const recentArtworks = await prisma.artwork.findMany({
     where: {
       ownerId: current.id,
@@ -48,7 +37,6 @@ export default async function NewNotebookPage() {
       </Card>
       <div className="mt-4">
         <NewNotebookClient
-          units={units}
           recentArtworks={recentArtworks.map((a) => ({
             ...a,
             createdAt: a.createdAt.toISOString(),

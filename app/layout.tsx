@@ -1,11 +1,24 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { PwaAndOffline } from '@/components/PwaAndOffline';
 
 export const metadata: Metadata = {
   title: 'しらべてつくろう!AIラボ',
-  description:
-    '「AIに出てこないのは誰か」を問い続ける、小学校社会科の探究学習プラットフォーム',
+  description: 'こどもが iPad で つくる・あそぶ・しらべる 学習アプリ',
   applicationName: 'しらべてつくろう!AIラボ',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'AIラボ',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
@@ -22,7 +35,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body data-grade="middle">{children}</body>
+      <body data-grade="middle">
+        <PwaAndOffline />
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,8 +1,7 @@
 import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
-import { getJourney, type JourneyRange } from '@/lib/queries/journey';
 import { Card, CardTitle } from '@/components/ui/Card';
-import { JourneyExportClient } from './JourneyExportClient';
 
 const ART_KIND_LABEL: Record<string, string> = {
   photo: '📷 しゃしん',
@@ -13,8 +12,22 @@ const ART_KIND_LABEL: Record<string, string> = {
   quiz: '🧩 クイズ',
   music: '🎵 おんがく',
   'mini-app': '🧰 アプリ',
-  infographic: '📊 まとめ',
 };
+
+type Range = 'week' | 'month' | 'all';
+
+function sinceFor(range: Range): Date | null {
+  const d = new Date();
+  if (range === 'week') {
+    d.setDate(d.getDate() - 7);
+    return d;
+  }
+  if (range === 'month') {
+    d.setMonth(d.getMonth() - 1);
+    return d;
+  }
+  return null;
+}
 
 export default async function JourneyPage({
   searchParams,
@@ -25,10 +38,32 @@ export default async function JourneyPage({
   if (!current) return null;
 
   const rangeParam = searchParams.range;
-  const range: JourneyRange =
+  const range: Range =
     rangeParam === 'month' ? 'month' : rangeParam === 'all' ? 'all' : 'week';
 
-  const j = await getJourney(current.id, range);
+  const since = sinceFor(range);
+  const dateFilter = since ? { gte: since } : undefined;
+
+  const [artworks, fieldNotes, bots] = await Promise.all([
+    prisma.artwork.findMany({
+      where: { ownerId: current.id, ...(dateFilter ? { createdAt: dateFilter } : {}) },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.fieldNote.findMany({
+      where: { userId: current.id, ...(dateFilter ? { createdAt: dateFilter } : {}) },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.bot.findMany({
+      where: { ownerId: current.id, ...(dateFilter ? { updatedAt: dateFilter } : {}) },
+      orderBy: { updatedAt: 'desc' },
+      include: { _count: { select: { knowledgeCards: true } } },
+    }),
+  ]);
+
+  const artworkCounts: Record<string, number> = {};
+  for (const a of artworks) {
+    artworkCounts[a.kind] = (artworkCounts[a.kind] ?? 0) + 1;
+  }
 
   const rangeLabel =
     range === 'week' ? 'この 1 週間' : range === 'month' ? 'この 1 ヶ月' : 'ぜんぶ';
@@ -36,7 +71,7 @@ export default async function JourneyPage({
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
       <Card>
-        <p className="text-xs text-kid-ink/60">🗓️ わたしの 学びジャーニー</p>
+        <p className="text-xs text-kid-ink/60">🗓️ わたしの あゆみ</p>
         <CardTitle className="mt-1">
           {current.nickname}さんの {rangeLabel}
         </CardTitle>
@@ -48,28 +83,20 @@ export default async function JourneyPage({
       </Card>
 
       <section className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <Stat label="📝 ふりかえり" value={j.totals.reflections} />
-        <Stat label="✨ 立ち止まり" value={j.totals.standstillTotal} suffix="回" />
-        <Stat label="🗺️ 立場の記録" value={j.totals.stanceSnaps} />
-        <Stat label="🔍 声の仮説" value={j.totals.hypotheses} />
-        <Stat label="🤖 ボット対話" value={j.totals.conversations} />
-        <Stat label="📒 記録ノート" value={j.totals.fieldNotes} />
-        <Stat label="🎨 さくひん" value={j.totals.artworks} />
-        <Stat label="📚 書いた文字" value={j.totals.totalWords} suffix="文字" />
+        <Stat label="🎨 さくひん" value={artworks.length} />
+        <Stat label="📒 ノート" value={fieldNotes.length} />
+        <Stat label="🤖 ボット" value={bots.length} />
       </section>
 
-      {Object.keys(j.totals.artworkCounts).length > 0 && (
+      {Object.keys(artworkCounts).length > 0 && (
         <section className="mt-6">
           <h3 className="mb-2 text-sm font-semibold text-kid-ink/70">
             🎨 さくひんの うちわけ
           </h3>
           <Card>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(j.totals.artworkCounts).map(([k, n]) => (
-                <span
-                  key={k}
-                  className="rounded-full bg-kid-soft px-3 py-1 text-sm"
-                >
+              {Object.entries(artworkCounts).map(([k, n]) => (
+                <span key={k} className="rounded-full bg-kid-soft px-3 py-1 text-sm">
                   {ART_KIND_LABEL[k] ?? k} × {n}
                 </span>
               ))}
@@ -78,98 +105,52 @@ export default async function JourneyPage({
         </section>
       )}
 
-      {j.reflections.length > 0 && (
+      {artworks.length > 0 && (
         <section className="mt-6">
           <h3 className="mb-2 text-sm font-semibold text-kid-ink/70">
-            📝 ふりかえりの あゆみ
+            🖼️ さいきんの さくひん
           </h3>
-          <div className="space-y-2">
-            {j.reflections.slice(0, 8).map((r) => (
-              <Card key={r.id}>
-                <p className="text-xs text-kid-ink/60">
-                  {r.unit?.title ?? '単元なし'} · {r.prompt} ·{' '}
-                  {new Date(r.createdAt).toLocaleDateString('ja-JP')}
-                </p>
-                <p className="mt-1 text-sm">{r.text}</p>
-                <p className="mt-2 text-[11px] text-kid-ink/50">
-                  立ち止まり {r.standstillCount}回 / {r.wordCount}文字
-                </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {artworks.slice(0, 8).map((a) => (
+              <Card key={a.id} className="!p-2 text-center">
+                {a.imageUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={a.imageUrl}
+                    alt=""
+                    className="aspect-square w-full rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="flex aspect-square w-full items-center justify-center rounded-xl bg-kid-soft text-3xl">
+                    {a.videoUrl ? '🎥' : a.audioUrl ? '🎙️' : a.kind === 'quiz' ? '🧩' : '🎨'}
+                  </div>
+                )}
+                <p className="mt-1 truncate text-xs">{a.title}</p>
               </Card>
             ))}
           </div>
+          <Link
+            href="/kids/gallery"
+            className="mt-3 inline-block text-xs text-kid-primary underline"
+          >
+            マイさくひんで ぜんぶ 見る →
+          </Link>
         </section>
       )}
 
-      {j.hypotheses.length > 0 && (
-        <section className="mt-6">
-          <h3 className="mb-2 text-sm font-semibold text-kid-ink/70">
-            🔍 声の仮説(AI に出てこないのは だれ?)
-          </h3>
-          <div className="space-y-2">
-            {j.hypotheses.slice(0, 5).map((h) => (
-              <Card key={h.id}>
-                <p className="text-xs text-kid-ink/60">
-                  {h.unit?.title ?? '単元なし'} ·{' '}
-                  {new Date(h.createdAt).toLocaleDateString('ja-JP')}
-                </p>
-                <p className="mt-1 text-sm">{h.hypothesisText}</p>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {j.stanceSnaps.length > 0 && (
-        <section className="mt-6">
-          <h3 className="mb-2 text-sm font-semibold text-kid-ink/70">
-            🗺️ 立場の うごき
-          </h3>
-          <Card>
-            <ul className="space-y-2 text-sm">
-              {j.stanceSnaps.slice(0, 6).map((s) => (
-                <li key={s.id} className="flex items-center justify-between">
-                  <span>
-                    <strong>
-                      {s.stance?.label ?? s.customLabel ?? '?'}
-                    </strong>
-                    <span className="ml-2 text-xs text-kid-ink/60">
-                      強さ:{'★'.repeat(s.strength)}
-                      {'☆'.repeat(5 - s.strength)}
-                    </span>
-                  </span>
-                  <span className="text-xs text-kid-ink/50">
-                    {new Date(s.createdAt).toLocaleDateString('ja-JP')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </section>
-      )}
-
-      {j.fieldNotes.length > 0 && (
+      {fieldNotes.length > 0 && (
         <section className="mt-6">
           <h3 className="mb-2 text-sm font-semibold text-kid-ink/70">
             📒 記録ノート
           </h3>
           <div className="grid gap-2 sm:grid-cols-2">
-            {j.fieldNotes.slice(0, 6).map((n) => (
-              <Link
-                key={n.id}
-                href={`/kids/notebook/${n.id}`}
-                className="block"
-              >
+            {fieldNotes.slice(0, 6).map((n) => (
+              <Link key={n.id} href={`/kids/notebook/${n.id}`} className="block">
                 <Card className="hover:shadow-md">
                   <p className="text-sm font-medium">📒 {n.title}</p>
                   <p className="mt-1 text-xs text-kid-ink/60">
-                    {n.unit?.title ?? '単元なし'} ·{' '}
                     {new Date(n.createdAt).toLocaleDateString('ja-JP')}
                   </p>
-                  {n.docsUrl && (
-                    <p className="mt-1 text-[10px] text-kid-accent">
-                      📄 Docs に書き出し済み
-                    </p>
-                  )}
                 </Card>
               </Link>
             ))}
@@ -177,9 +158,23 @@ export default async function JourneyPage({
         </section>
       )}
 
-      <section className="mt-8">
-        <JourneyExportClient range={range} rangeLabel={rangeLabel} />
-      </section>
+      {bots.length > 0 && (
+        <section className="mt-6">
+          <h3 className="mb-2 text-sm font-semibold text-kid-ink/70">🤖 マイボット</h3>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {bots.map((b) => (
+              <Link key={b.id} href={`/kids/bots/${b.id}`} className="block">
+                <Card className="hover:shadow-md">
+                  <p className="text-sm font-medium">🤖 {b.name}</p>
+                  <p className="mt-1 text-xs text-kid-ink/60">
+                    ナレッジカード {b._count.knowledgeCards}枚
+                  </p>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
@@ -189,8 +184,8 @@ function RangeChip({
   target,
   label,
 }: {
-  current: JourneyRange;
-  target: JourneyRange;
+  current: Range;
+  target: Range;
   label: string;
 }) {
   return (
@@ -207,22 +202,11 @@ function RangeChip({
   );
 }
 
-function Stat({
-  label,
-  value,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-}) {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl bg-white p-4 text-center ring-1 ring-kid-ink/5">
       <p className="text-xs text-kid-ink/60">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-kid-primary">
-        {value}
-        {suffix && <span className="ml-0.5 text-sm">{suffix}</span>}
-      </p>
+      <p className="mt-1 text-2xl font-bold text-kid-primary">{value}</p>
     </div>
   );
 }
