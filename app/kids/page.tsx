@@ -57,8 +57,13 @@ const CREATIVE_APPS: Tile[] = [
     href: '/kids/create/game',
     icon: '🎮',
     title: 'ゲームを つくる',
-    desc: 'もうすこしで 使えるよ',
-    disabled: true,
+    desc: 'もぐらたたき。絵文字と スピードを えらんで そのまま 遊べる',
+  },
+  {
+    href: '/kids/create/code',
+    icon: '🧠',
+    title: 'プログラミング',
+    desc: 'めいれい を ならべて、ゴールへ いこう',
   },
   {
     href: '/kids/gallery',

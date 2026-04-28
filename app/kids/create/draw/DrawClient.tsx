@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Label } from '@/components/ui/Input';
+import { parseJsonResponse } from '@/lib/http/parseJsonResponse';
 
 const PALETTE = [
   '#2E2A27',
@@ -181,8 +182,8 @@ export function DrawClient({ photos = [] }: { photos?: Photo[] }) {
       fd.set('title', title || '(名前なし)');
       fd.set('dataUrl', dataUrl);
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? 'ほぞんに しっぱい');
+      const data = await parseJsonResponse<{ url: string }>(res);
+      if (!res.ok || !data.url) throw new Error(data?.error ?? 'ほぞんに しっぱい');
       setSaved(data.url);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

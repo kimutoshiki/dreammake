@@ -212,6 +212,12 @@ model Artwork {
   quizSpec             String?
   quizKind             String?
 
+  // 🎮 ゲームをつくる(もぐらたたき): JSON で 設定を 保存
+  gameSpec             String?
+
+  // 🧩 ノーコードプログラミング(命令ブロック): JSON で コマンド列を 保存
+  programSpec          String?
+
   createdInConversationId String?
   createdInConversation   Conversation? @relation(fields: [createdInConversationId], references: [id])
 

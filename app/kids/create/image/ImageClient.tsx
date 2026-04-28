@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Label, Textarea } from '@/components/ui/Input';
+import { parseJsonResponse } from '@/lib/http/parseJsonResponse';
 
 type Aspect = '1:1' | '3:4' | '4:3';
 
@@ -31,10 +32,18 @@ export function ImageClient() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ request, aspectRatio: aspect }),
       });
-      const data = await res.json();
+      const data = await parseJsonResponse<{
+        url?: string;
+        rateLimited?: boolean;
+        blocked?: boolean;
+        reason?: string;
+        refused?: boolean;
+        rewritten?: boolean;
+        mocked?: boolean;
+      }>(res);
       if (!res.ok) {
         if (data?.rateLimited) {
-          setMsg({ kind: 'err', text: data.error });
+          setMsg({ kind: 'err', text: data.error ?? 'たくさん つかった日 だよ' });
         } else if (data?.blocked) {
           setMsg({ kind: 'refuse', text: data.reason ?? 'つくれなかったよ' });
         } else {
@@ -43,10 +52,10 @@ export function ImageClient() {
         return;
       }
       if (data.refused) {
-        setMsg({ kind: 'refuse', text: data.reason });
+        setMsg({ kind: 'refuse', text: data.reason ?? 'つくれなかったよ' });
         return;
       }
-      setImageUrl(data.url);
+      if (data.url) setImageUrl(data.url);
       setRewritten(!!data.rewritten);
       setMocked(!!data.mocked);
     } catch (e) {

@@ -12,6 +12,8 @@ const KIND_LABEL: Record<string, string> = {
   infographic: '📊 まとめ',
   quiz: '🧩 クイズ',
   music: '🎵 おんがく',
+  game: '🎮 ゲーム',
+  program: '🧠 プログラム',
   'mini-app': '🧰 アプリ',
 };
 
@@ -93,6 +95,8 @@ function ArtworkView({
     audioUrl: string | null;
     audioTranscript: string | null;
     quizSpec: string | null;
+    gameSpec: string | null;
+    programSpec: string | null;
   };
 }) {
   if (artwork.imageUrl) {
@@ -144,6 +148,43 @@ function ArtworkView({
       );
     } catch {
       return <div className="text-xs text-kid-ink/60">クイズ</div>;
+    }
+  }
+  if (artwork.kind === 'game' && artwork.gameSpec) {
+    try {
+      const spec = JSON.parse(artwork.gameSpec) as {
+        goodEmojis: string[];
+        durationSec: number;
+        speed: string;
+      };
+      return (
+        <div className="flex aspect-video w-full flex-col items-center justify-center rounded-xl bg-gradient-to-b from-sky-100 to-emerald-100 text-2xl">
+          <span className="text-3xl">{spec.goodEmojis.slice(0, 4).join(' ')}</span>
+          <span className="mt-1 text-xs text-kid-ink/70">
+            {spec.durationSec}秒 / {spec.speed}
+          </span>
+        </div>
+      );
+    } catch {
+      return <div className="text-xs text-kid-ink/60">ゲーム</div>;
+    }
+  }
+  if (artwork.kind === 'program' && artwork.programSpec) {
+    try {
+      const spec = JSON.parse(artwork.programSpec) as {
+        hero: string;
+        commands: Array<{ kind: string }>;
+      };
+      return (
+        <div className="flex aspect-video w-full flex-col items-center justify-center rounded-xl bg-kid-soft text-2xl">
+          <span className="text-3xl">{spec.hero} → 🎯</span>
+          <span className="mt-1 text-xs text-kid-ink/70">
+            {spec.commands.length} めいれい
+          </span>
+        </div>
+      );
+    } catch {
+      return <div className="text-xs text-kid-ink/60">プログラム</div>;
     }
   }
   return (

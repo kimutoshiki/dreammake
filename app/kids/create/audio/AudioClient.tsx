@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Label, Textarea } from '@/components/ui/Input';
+import { parseJsonResponse } from '@/lib/http/parseJsonResponse';
 
 type Step = 'idle' | 'recording' | 'review' | 'saved';
 
@@ -198,8 +199,8 @@ export function AudioClient() {
       fd.set('transcript', transcript);
       fd.set('file', file);
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? 'ほぞんに しっぱい');
+      const data = await parseJsonResponse<{ url: string }>(res);
+      if (!res.ok || !data.url) throw new Error(data?.error ?? 'ほぞんに しっぱい');
       setSavedUrl(data.url);
       setStep('saved');
     } catch (e) {

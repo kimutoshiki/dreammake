@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Label } from '@/components/ui/Input';
 import { audioBufferToWav } from '@/lib/music/wav-encoder';
+import { parseJsonResponse } from '@/lib/http/parseJsonResponse';
 
 // 8 ステップ × 4 ドラム + 8 ステップ メロディ(ペンタトニック 5 音階 + 休符)
 const STEPS = 8;
@@ -257,8 +258,8 @@ export function MusicMakerClient() {
       fd.set('transcript', `ドラム+メロディ / ${pattern.bpm}BPM / ${mood}`);
       fd.set('file', file);
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? 'ほぞんに しっぱい');
+      const data = await parseJsonResponse<{ url: string }>(res);
+      if (!res.ok || !data.url) throw new Error(data?.error ?? 'ほぞんに しっぱい');
       setSavedUrl(data.url);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

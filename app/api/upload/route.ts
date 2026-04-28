@@ -90,7 +90,6 @@ export async function POST(req: Request) {
     ownerId: kid.id,
     kind: artworkKind,
     title,
-    isPublic: false,
   };
   if (kind === 'photo' || kind === 'drawing') {
     data.imageUrl = publicUrl;
