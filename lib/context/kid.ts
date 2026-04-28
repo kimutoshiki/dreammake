@@ -16,7 +16,7 @@ export async function getSelectedKidId(): Promise<string | null> {
 
 export function setSelectedKidId(id: string) {
   cookies().set(COOKIE_NAME, id, {
-    httpOnly: false,
+    httpOnly: true,
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 24 * 30, // 30 日

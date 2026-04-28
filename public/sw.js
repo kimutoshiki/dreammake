@@ -1,8 +1,8 @@
 // しらべてつくろう!AIラボ 簡易 Service Worker
 // アプリシェル(CSS/JS)と アップロード画像を ネットワーク優先・失敗時キャッシュで返す。
 // Bot 対話・画像生成などの API は キャッシュせず、ネットが 無ければ そのまま失敗させる。
-const CACHE = 'stk-shell-v1';
-const PRECACHE = ['/', '/kids', '/privacy', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'stk-shell-v2';
+const PRECACHE = ['/', '/pick', '/kids', '/privacy', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -69,6 +69,11 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       })
-      .catch(() => caches.match(request).then((hit) => hit ?? caches.match('/kids'))),
+      .catch(() =>
+        caches
+          .match(request)
+          .then((hit) => hit ?? caches.match('/pick'))
+          .then((hit) => hit ?? caches.match('/kids')),
+      ),
   );
 });

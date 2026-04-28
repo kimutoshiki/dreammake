@@ -30,6 +30,36 @@ Service Worker で アプリ本体 と アップロードした 作品を キャ
 
 ---
 
+## 🌐 公開 URL(デモ)
+
+GitHub Codespaces の ポート公開で、**いつでもどこでも 誰でも** 閲覧可能な
+デモ URL を 用意しています:
+
+```
+https://stunning-dollop-969qr775vvjfpx54-3000.app.github.dev/
+```
+
+### Codespace を 起動した時の 立ち上げ
+
+Codespace を 開いた直後に 1 回だけ:
+
+```bash
+bash scripts/serve-public.sh
+```
+
+これで Next.js 本番サーバーが バックグラウンドで 永続起動し、ポート 3000
+が public に なります(`gh codespace ports visibility 3000:public`)。
+シェルや ターミナルを 閉じても サーバーは 走り続けます(`setsid` 起動)。
+
+### 限界・注意
+
+- 開発用 Codespace が **アクティブな間だけ** 有効(既定で 30 分 アイドルで 自動停止)
+- 永続化したい場合は `Dockerfile` を 使って Render / Railway / Fly.io 等に デプロイ
+- **本物の 児童データは 入っていません**(シードのみ)。本番の 教室で 使う ときは
+  校内 LAN 内で 起動し、公開ポートは 使わない 想定
+
+---
+
 ## 🚀 はじめかた(先生・学校向け)
 
 ### ケース A:`pnpm` で 直接 立ち上げる
