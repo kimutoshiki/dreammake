@@ -7,14 +7,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # 動かすのに 必要最小限。API キーは .env.local から 取得(compose の env_file で)
-      DATABASE_URL: "file:/app/prisma/dev.db"
+      # /data 配下に DB と アップロード作品が まとめて 入る(Dockerfile と 一致)
+      DATABASE_URL: "file:/data/dev.db"
       NODE_ENV: "production"
-      NEXTAUTH_URL: "http://localhost:3000"
     env_file:
       - .env.local
     volumes:
       # SQLite と 児童が 作った 画像・音声・動画を ホスト側に 永続化
-      - ./_data/db:/app/prisma
-      - ./_data/uploads:/app/public/uploads
+      - ./_data:/data
     restart: unless-stopped

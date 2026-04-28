@@ -4,7 +4,20 @@ const nextConfig = {
   // Vercel 固有機能は使わない方針(ローカル/オンプレ優先)
   poweredByHeader: false,
   experimental: {
-    // SSE ストリーミング応答用。Route Handler でデフォルト有効だが明示。
+    // Server Actions の Origin/Host チェックを通したい 公開ホスト。
+    // GitHub Codespaces の ポート公開 と Fly.io デプロイで 必要。
+    // - `${CODESPACE_NAME}-3000.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}` を
+    //   ランタイムに 自動で 許可。
+    // - ENV `PUBLIC_HOST` (カンマ区切り) が あれば 追加で 許可。
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        ...(process.env.CODESPACE_NAME && process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN
+          ? [`${process.env.CODESPACE_NAME}-3000.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`]
+          : []),
+        ...(process.env.PUBLIC_HOST ? process.env.PUBLIC_HOST.split(',').map((h) => h.trim()) : []),
+      ],
+    },
   },
   async headers() {
     return [

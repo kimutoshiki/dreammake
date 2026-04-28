@@ -1,0 +1,50 @@
+# Fly.io 設定:Codespace が 落ちていても 24/7 動く 永続デプロイ用。
+#
+# 使い方:
+#   curl -L https://fly.io/install.sh | sh        # CLI インストール
+#   flyctl auth signup                            # 初回のみ
+#   flyctl launch --copy-config --no-deploy       # アプリ名を 決める(例: aikobo-demo)
+#   flyctl volumes create stk_data --size 1 --region nrt    # 1GB 永続ボリューム(東京)
+#   flyctl secrets set ANTHROPIC_API_KEY=sk-ant-...
+#   flyctl deploy
+#
+# デプロイ後の URL: https://<app-name>.fly.dev/
+
+# ⚠ flyctl launch が このアプリ名を 上書きします。手動で 決めるなら 任意の名前を 入れる。
+app = "shirabete-tsukurou-aikobo"
+primary_region = "nrt"  # 東京。学校から 近いほうが 速い
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  HOSTNAME = "0.0.0.0"
+  DATABASE_URL = "file:/data/dev.db"
+  # PUBLIC_HOST は flyctl deploy 後に Server Actions の origin 許可に 使う。
+  # flyctl deploy 後に flyctl secrets set PUBLIC_HOST=<app-name>.fly.dev で 上書き 推奨。
+
+[[mounts]]
+  source = "stk_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"      # アクセスが ないと 自動停止(節約)
+  auto_start_machines = true        # アクセスで 自動起動(初回 ~5 秒の cold start)
+  min_machines_running = 0
+  processes = ["app"]
+
+[http_service.checks.healthz]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1

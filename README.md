@@ -54,9 +54,46 @@ bash scripts/serve-public.sh
 ### 限界・注意
 
 - 開発用 Codespace が **アクティブな間だけ** 有効(既定で 30 分 アイドルで 自動停止)
-- 永続化したい場合は `Dockerfile` を 使って Render / Railway / Fly.io 等に デプロイ
+- **24/7 起動したい** 場合は 下の「☁️ Fly.io への 永続デプロイ」を 使う
 - **本物の 児童データは 入っていません**(シードのみ)。本番の 教室で 使う ときは
   校内 LAN 内で 起動し、公開ポートは 使わない 想定
+
+---
+
+## ☁️ Fly.io への 永続デプロイ(Codespace が 落ちていても 24/7)
+
+無料枠の Fly.io に Docker で デプロイすると、Codespace が 停止していても
+URL は 生き続けます(東京リージョン、日本から 高速)。
+
+```bash
+# 1) flyctl を Codespace に インストール(初回のみ)
+curl -L https://fly.io/install.sh | sh
+export PATH="$HOME/.fly/bin:$PATH"
+
+# 2) Fly.io アカウント(無料、要メール)
+flyctl auth signup    # or flyctl auth login
+
+# 3) アプリ作成 + ボリューム(SQLite と アップロードを 永続化)
+flyctl launch --copy-config --no-deploy   # アプリ名を 決める
+flyctl volumes create stk_data --size 1 --region nrt   # 1GB / 東京
+
+# 4) 環境変数(API キー)を 設定
+flyctl secrets set ANTHROPIC_API_KEY=sk-ant-...
+flyctl secrets set GOOGLE_API_KEY=AIza...      # (使うなら)
+flyctl secrets set PUBLIC_HOST=<your-app>.fly.dev
+
+# 5) デプロイ(2〜3 分)
+flyctl deploy
+
+# 公開 URL: https://<your-app>.fly.dev/
+```
+
+**料金の目安(無料枠):**
+- shared-cpu-1x / 512MB × 1 マシン → 月 ~3 ドル相当(無料枠 $5/月で 収まる)
+- 1GB ボリューム → 月 0.15 ドル(無料枠で カバー)
+- アクセスが ない時は `auto_stop_machines = "stop"` で 自動停止 →
+  次の アクセスで 5 秒で 起動(cold start)。完全 24/7 にしたい なら
+  `min_machines_running = 1` に 変更
 
 ---
 

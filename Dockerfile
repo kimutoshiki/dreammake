@@ -43,8 +43,17 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
-# SQLite と アップロード作品を 永続化するボリューム位置
-VOLUME ["/app/prisma", "/app/public/uploads"]
+# 永続化ボリューム:
+# - /data に SQLite DB と アップロードを まとめる(Fly.io / docker compose で マウント)
+# - public/uploads は シンボリックリンク で /data/uploads を 指すように 起動時に 作成
+RUN mkdir -p /data /data/uploads && rm -rf /app/public/uploads
+VOLUME ["/data"]
 
+ENV DATABASE_URL="file:/data/dev.db"
 EXPOSE 3000
-CMD ["sh", "-lc", "pnpm prisma migrate deploy && pnpm db:seed || true; pnpm start"]
+
+# 起動時に:
+# 1) public/uploads → /data/uploads の シンボリックリンクを 張る
+# 2) DB が なければ migrate + seed、あれば migrate のみ
+# 3) Next.js を 起動
+CMD ["sh", "-lc", "ln -sfn /data/uploads /app/public/uploads && pnpm prisma migrate deploy && (test -s /data/dev.db && echo 'DB exists, skip seed' || pnpm db:seed) && pnpm start"]
