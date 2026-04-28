@@ -4,6 +4,9 @@ import { getSelectedKidId, setSelectedKidId } from '@/lib/context/kid';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { ensureSeeded } from '@/lib/db/ensure-seeded';
 
+// ビルド時の prerender を 無効化 — DB に 触る ので 各リクエストで 動的に
+export const dynamic = 'force-dynamic';
+
 /**
  * iPad で 最初に 開いたとき、出席番号を 1 回だけ 選ぶ画面。
  * 選んだら Cookie(30 日)に 出席番号の User.id を 書いて /kids へ。

@@ -51,17 +51,26 @@ export async function ensureSeeded(): Promise<void> {
       },
     });
 
+    // ⚠️ User.gradeProfileId には UNIQUE 制約 が ある(1 ユーザー = 1 プロファイル)。
+    // 児童ごとに 別の GradeProfile を 用意する。
     for (let i = 1; i <= 40; i++) {
       const num = String(i).padStart(2, '0');
       const handle = `s-${num}`;
       const nickname = `${i} ばん`;
       const avatarSeed = `k-${num}`;
+      // 出席番号ベースの 決定論的 ID。
+      // Vercel は インスタンス ごとに /tmp が 別 なので、CUID だと 同じ「12 ばん」でも
+      // インスタンスごとに 違う ID に なって Cookie が 通らない。決定論にすれば
+      // 全インスタンスで 同じ ID を 共有できる。
+      const userId = `kid-${num}`;
+      const gradeProfileId = `gp-${num}`;
 
-      const existing = await prisma.user.findUnique({ where: { handle } });
-      let gradeProfileId = existing?.gradeProfileId ?? null;
-      if (!gradeProfileId) {
-        const gp = await prisma.gradeProfile.create({
-          data: {
+      try {
+        await prisma.gradeProfile.upsert({
+          where: { id: gradeProfileId },
+          update: {},
+          create: {
+            id: gradeProfileId,
             band: 'middle',
             gradeYear: 4,
             furiganaMode: 'above-grade',
@@ -69,25 +78,36 @@ export async function ensureSeeded(): Promise<void> {
             maxQaChars: 200,
           },
         });
-        gradeProfileId = gp.id;
+      } catch (err) {
+        if (!/unique constraint/i.test(String(err))) throw err;
       }
-      const user = await prisma.user.upsert({
-        where: { handle },
-        update: {},
-        create: {
-          role: 'student',
-          schoolId: school.id,
-          handle,
-          nickname,
-          avatarSeed,
-          gradeProfileId,
-        },
-      });
-      await prisma.classMembership.upsert({
-        where: { classId_userId: { classId: klass.id, userId: user.id } },
-        update: {},
-        create: { classId: klass.id, userId: user.id, role: 'student' },
-      });
+      // 並列リクエスト・古い CUID 行と 衝突したら スキップ(冪等)
+      try {
+        await prisma.user.upsert({
+          where: { id: userId },
+          update: {},
+          create: {
+            id: userId,
+            role: 'student',
+            schoolId: school.id,
+            handle,
+            nickname,
+            avatarSeed,
+            gradeProfileId,
+          },
+        });
+      } catch (err) {
+        if (!/unique constraint/i.test(String(err))) throw err;
+      }
+      try {
+        await prisma.classMembership.upsert({
+          where: { classId_userId: { classId: klass.id, userId } },
+          update: {},
+          create: { classId: klass.id, userId, role: 'student' },
+        });
+      } catch (err) {
+        if (!/unique constraint/i.test(String(err))) throw err;
+      }
     }
     console.log('🌱 自動シード完了');
   })();

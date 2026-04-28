@@ -7,6 +7,7 @@
  */
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { ensureSeeded } from '@/lib/db/ensure-seeded';
 
 const COOKIE_NAME = 'stk_kid_id';
 
@@ -41,6 +42,10 @@ export type KidWithProfile = NonNullable<
 export async function getCurrentKid(): Promise<{
   current: KidWithProfile | null;
 }> {
+  // Vercel の サーバレス は インスタンス ごとに /tmp が 別 なので、
+  // どの ページから 入っても まず シードを 流す(冪等)。
+  await ensureSeeded();
+
   const picked = await getSelectedKidId();
   if (!picked) return { current: null };
 

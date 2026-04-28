@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && next build",
+    "bundle-migrations": "node scripts/bundle-migrations.mjs",
+    "vercel-build": "node scripts/bundle-migrations.mjs && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

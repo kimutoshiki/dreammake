@@ -4,10 +4,12 @@
  * Vercel 等の サーバレス環境では Prisma CLI が 動かないので、
  * 起動時に この関数で 直接 SQL を 流す。冪等(_prisma_migrations テーブルで
  * 適用済みを 追跡)。
+ *
+ * 関数バンドル に 含めるため、SQL は scripts/bundle-migrations.mjs で
+ * `_migrations.generated.ts` に 束ねた TypeScript 定数を 使う。
  */
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import path from 'node:path';
 import { createClient } from '@libsql/client';
+import { BUNDLED_MIGRATIONS } from './_migrations.generated';
 
 let migratedFor: string | null = null;
 let inProgress: Promise<void> | null = null;
@@ -32,29 +34,15 @@ export async function migrateLibsql(url: string, authToken?: string): Promise<vo
         )
       `);
 
-      const migrationsDir = path.join(process.cwd(), 'prisma', 'migrations');
-      if (!existsSync(migrationsDir)) {
-        console.warn('⚠️ prisma/migrations not found, skipping libsql migrate');
-        return;
-      }
-
-      const dirs = readdirSync(migrationsDir, { withFileTypes: true })
-        .filter((d) => d.isDirectory())
-        .map((d) => d.name)
-        .sort();
-
-      for (const name of dirs) {
+      for (const m of BUNDLED_MIGRATIONS) {
         const applied = await client.execute({
           sql: 'SELECT 1 FROM _prisma_migrations WHERE migration_name = ? AND finished_at IS NOT NULL LIMIT 1',
-          args: [name],
+          args: [m.name],
         });
         if (applied.rows.length > 0) continue;
 
-        const sqlPath = path.join(migrationsDir, name, 'migration.sql');
-        if (!existsSync(sqlPath)) continue;
-        const sql = readFileSync(sqlPath, 'utf8');
-        const statements = splitSql(sql);
-        console.log(`📦 適用中: ${name} (${statements.length} statements)`);
+        const statements = splitSql(m.sql);
+        console.log(`📦 適用中: ${m.name} (${statements.length} statements)`);
         for (const stmt of statements) {
           if (!stmt.trim()) continue;
           try {
@@ -63,12 +51,13 @@ export async function migrateLibsql(url: string, authToken?: string): Promise<vo
             const msg = (err as Error)?.message ?? String(err);
             // すでに 存在する 場合は スキップ(冪等運用)
             if (/already exists/i.test(msg) || /duplicate/i.test(msg)) continue;
+            console.error(`migration ${m.name} statement failed:`, msg);
             throw err;
           }
         }
         await client.execute({
           sql: 'INSERT INTO _prisma_migrations (id, migration_name, finished_at, applied_steps_count) VALUES (?, ?, CURRENT_TIMESTAMP, ?)',
-          args: [`${name}-${Date.now()}`, name, statements.length],
+          args: [`${m.name}-${Date.now()}`, m.name, statements.length],
         });
       }
 

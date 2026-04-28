@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation';
 import { getCurrentKid } from '@/lib/context/kid';
 import { KidNav } from '@/components/KidNav';
 
+// /kids 配下は すべて 児童ごとの 動的データを 読むので 静的 prerender しない
+export const dynamic = 'force-dynamic';
+
 export default async function KidsLayout({
   children,
 }: {
