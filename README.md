@@ -60,7 +60,70 @@ bash scripts/serve-public.sh
 
 ---
 
-## ☁️ Fly.io への 永続デプロイ(Codespace が 落ちていても 24/7)
+## 🚀 Vercel + Turso への 永続デプロイ(推奨・Codespace 不要で 24/7)
+
+`kimutoshiki-aikobo.vercel.app` のような **GitHub アカウント名入りの 固定 URL** で
+ずっと 公開できます。Codespace が 停止していても 関係なく、すべて 無料枠で OK。
+
+データベースは **Turso(SQLite クラウド、無料 9GB)**、ファイル保存は
+**Vercel Blob(無料 1GB)**。Prisma スキーマは そのままで、`TURSO_DATABASE_URL`
+が 設定されていると 自動で libSQL ドライバアダプタに 切り替わります。
+
+### 1. Turso(無料 SQLite クラウド)に DB を 作る
+
+```bash
+# Codespace の ターミナルで:
+curl -sSfL https://get.tur.so/install.sh | bash
+export PATH="$HOME/.turso:$PATH"
+
+turso auth signup     # GitHub アカウントで サインイン
+turso db create aikobo --location nrt   # 東京
+turso db show aikobo --url              # libsql://... を 控える
+turso db tokens create aikobo           # 認証トークンを 控える
+
+# 既存 SQLite の マイグレーションを Turso に 流す(初回のみ)
+turso db shell aikobo < prisma/migrations/20251020*/migration.sql
+turso db shell aikobo < prisma/migrations/20251022*/migration.sql
+turso db shell aikobo < prisma/migrations/20260428*/migration.sql
+# (上記の 順は ファイル名 昇順。`ls prisma/migrations/*/migration.sql` で 確認)
+```
+
+### 2. Vercel に GitHub 連携で デプロイ
+
+1. [vercel.com](https://vercel.com) を **GitHub** で サインイン
+2. **Add New… → Project** で `kimutoshiki/dreammake` を 選択
+3. **Project Name** に `aikobo` を 入れると URL が
+   `kimutoshiki-aikobo.vercel.app` に なる(個人プロジェクトなので
+   ユーザー名 が 自動で 入る)
+4. **Environment Variables** で:
+   - `TURSO_DATABASE_URL` = `libsql://aikobo-<...>.turso.io`
+   - `TURSO_AUTH_TOKEN` = 上で控えた トークン
+   - `ANTHROPIC_API_KEY` = `sk-ant-...`(必須:無いと モック応答)
+   - `GOOGLE_API_KEY` = `AIza...`(任意:無いと プレースホルダ画像)
+5. **Deploy** を クリック(2〜3 分)
+
+### 3. ストレージ(児童の しゃしん・どうが・ろくおん)
+
+Vercel ダッシュボード → **Storage** タブ → **Create Database** → **Blob** を 作成。
+作成すると `BLOB_READ_WRITE_TOKEN` が 自動で プロジェクトに 入り、再デプロイ後に
+有効化。
+
+### 4. 初回アクセス
+
+`https://kimutoshiki-aikobo.vercel.app/` を 開くと、空の Turso DB に 自動で
+40 人の 児童が 投入され、出席番号選択画面が 出ます([lib/db/ensure-seeded.ts](lib/db/ensure-seeded.ts) で
+冪等に 実行)。
+
+### 料金
+
+- Vercel:Hobby プラン(無料)で 個人プロジェクト OK
+- Turso:Starter プラン(無料)— 9 GB 容量 / 10 億 行読み 月
+- Vercel Blob:無料枠 1 GB / 月
+- 月間 数百 アクセスなら **すべて 無料枠で 収まる**
+
+---
+
+## ☁️ Fly.io への 永続デプロイ(代替手段)
 
 無料枠の Fly.io に Docker で デプロイすると、Codespace が 停止していても
 URL は 生き続けます(東京リージョン、日本から 高速)。

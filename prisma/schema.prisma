@@ -6,10 +6,14 @@
 // ローカル保管で 使える。
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // Turso(libSQL) を Vercel デプロイで 使うため driverAdapters を 有効化。
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
+  // ローカル開発:SQLite ファイル(file:./dev.db)
+  // 本番 (Vercel):同じ schema を libSQL アダプタ経由で Turso(SQLite クラウド)に
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }

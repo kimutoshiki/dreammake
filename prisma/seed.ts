@@ -7,8 +7,23 @@
  * 1 ばんに 見本ボット 1 つ。
  */
 import { PrismaClient } from '@prisma/client';
+import { PrismaLibSQL } from '@prisma/adapter-libsql';
+import { createClient } from '@libsql/client';
 
-const prisma = new PrismaClient();
+// ローカルの dev.db でも、Turso(本番)でも 同じスクリプトで 流せるように
+// TURSO_DATABASE_URL が あれば libSQL アダプタ、なければ 標準の PrismaClient。
+function makePrisma() {
+  if (process.env.TURSO_DATABASE_URL) {
+    const libsql = createClient({
+      url: process.env.TURSO_DATABASE_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+    return new PrismaClient({ adapter: new PrismaLibSQL(libsql) });
+  }
+  return new PrismaClient();
+}
+
+const prisma = makePrisma();
 
 async function main() {
   console.log('🌱 シードを開始します…');

@@ -2,12 +2,16 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getSelectedKidId, setSelectedKidId } from '@/lib/context/kid';
 import { Card, CardTitle } from '@/components/ui/Card';
+import { ensureSeeded } from '@/lib/db/ensure-seeded';
 
 /**
  * iPad で 最初に 開いたとき、出席番号を 1 回だけ 選ぶ画面。
  * 選んだら Cookie(30 日)に 出席番号の User.id を 書いて /kids へ。
  */
 export default async function PickPage() {
+  // 本番 Turso DB が からの 初回 アクセス時 に 自動で 40 人を 投入(冪等)
+  await ensureSeeded();
+
   // すでに Cookie で 出席番号が 固定されているなら ハブへ 戻す
   const picked = await getSelectedKidId();
   if (picked) {

@@ -12,7 +12,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentKid } from '@/lib/context/kid';
-import { saveKidDataUrl, saveKidUpload } from '@/lib/storage/local';
+import { saveKidDataUrl, saveKidUpload } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
