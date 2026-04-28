@@ -6,6 +6,7 @@
  * ローカル dev は 既存の `pnpm db:seed` で OK。
  */
 import { prisma } from '@/lib/prisma';
+import { migrateLibsql } from '@/lib/db/migrate-libsql';
 
 let inProgress: Promise<void> | null = null;
 
@@ -13,6 +14,20 @@ export async function ensureSeeded(): Promise<void> {
   if (inProgress) return inProgress;
 
   inProgress = (async () => {
+    // Vercel 等の サーバレス環境で TURSO_DATABASE_URL を 使う 場合、
+    // 初回 起動時に スキーマ migrations を 流す(冪等)。
+    if (process.env.TURSO_DATABASE_URL) {
+      try {
+        await migrateLibsql(
+          process.env.TURSO_DATABASE_URL,
+          process.env.TURSO_AUTH_TOKEN,
+        );
+      } catch (err) {
+        console.error('libSQL migration failed:', err);
+        // 既に 適用済みの 可能性が あるので 続行
+      }
+    }
+
     const userCount = await prisma.user.count({ where: { role: 'student' } });
     if (userCount > 0) return;
 

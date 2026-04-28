@@ -9,6 +9,11 @@ const nextConfig = {
     // - `${CODESPACE_NAME}-3000.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}` を
     //   ランタイムに 自動で 許可。
     // - ENV `PUBLIC_HOST` (カンマ区切り) が あれば 追加で 許可。
+    // Vercel 等の サーバレス環境で 起動時に migrations.sql を 読めるよう
+    // 関数バンドルに 含める。これがないと file:/tmp/dev.db で 初期化 できない。
+    outputFileTracingIncludes: {
+      '/**': ['./prisma/migrations/**/*.sql'],
+    },
     serverActions: {
       allowedOrigins: [
         'localhost:3000',
