@@ -28,7 +28,13 @@ export default async function BotDetailPage({
 
   const sourcesByCardId = new Map<string, { id: string; title: string }[]>();
   for (const card of bot.knowledgeCards) {
-    const ids: string[] = JSON.parse(card.sourceIds || '[]');
+    let ids: string[] = [];
+    try {
+      const parsed = JSON.parse(card.sourceIds || '[]');
+      if (Array.isArray(parsed)) ids = parsed.filter((x) => typeof x === 'string');
+    } catch {
+      // 破損 JSON は 出典なし扱い
+    }
     sourcesByCardId.set(
       card.id,
       ids

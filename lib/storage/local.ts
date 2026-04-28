@@ -9,7 +9,13 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const UPLOAD_ROOT = path.join(process.cwd(), 'public', 'uploads');
+// Vercel の 関数 ファイルシステム は 読み取り専用(/tmp 以外)。
+// 本番では /tmp/uploads に 書いて、`/uploads/[...path]` ルート ハンドラ で 配信する。
+// それ以外(ローカル / Codespace / Docker)は public/uploads に 直接 書いて
+// Next.js の 静的配信に 任せる。
+const UPLOAD_ROOT = process.env.VERCEL
+  ? '/tmp/uploads'
+  : path.join(process.cwd(), 'public', 'uploads');
 
 const EXT_BY_TYPE: Record<string, string> = {
   'image/png': 'png',

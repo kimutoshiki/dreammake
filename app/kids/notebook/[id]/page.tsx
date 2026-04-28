@@ -17,7 +17,13 @@ export default async function NotebookDetailPage({
   });
   if (!note || note.userId !== current.id) notFound();
 
-  const ids: string[] = JSON.parse(note.artworkIds || '[]');
+  let ids: string[] = [];
+  try {
+    const parsed = JSON.parse(note.artworkIds || '[]');
+    if (Array.isArray(parsed)) ids = parsed.filter((x) => typeof x === 'string');
+  } catch {
+    // 破損 JSON は 添付なし扱い
+  }
   const arts =
     ids.length > 0
       ? await prisma.artwork.findMany({

@@ -28,28 +28,41 @@ export async function ensureSeeded(): Promise<void> {
       }
     }
 
-    const userCount = await prisma.user.count({ where: { role: 'student' } });
+    // テーブルが まだ ない 場合 ここで throw し得るので 防御
+    let userCount = 0;
+    try {
+      userCount = await prisma.user.count({ where: { role: 'student' } });
+    } catch (err) {
+      console.error('ensureSeeded: count failed (table missing?)', err);
+      // 続行して create を 試みる(もし テーブルが ある なら 自動修復)
+    }
     if (userCount > 0) return;
 
     console.log('🌱 自動シード開始(出席番号 1〜40)…');
 
-    const school = await prisma.school.upsert({
-      where: { code: 'demo-school' },
-      update: {},
-      create: { code: 'demo-school', name: 'デモ小学校' },
-    });
-
-    const klass = await prisma.class.upsert({
-      where: { id: 'demo-class' },
-      update: {},
-      create: {
-        id: 'demo-class',
-        schoolId: school.id,
-        name: '4年1組',
-        gradeYear: 4,
-        defaultGrade: 'middle',
-      },
-    });
+    let school: { id: string };
+    let klass: { id: string };
+    try {
+      school = await prisma.school.upsert({
+        where: { code: 'demo-school' },
+        update: {},
+        create: { code: 'demo-school', name: 'デモ小学校' },
+      });
+      klass = await prisma.class.upsert({
+        where: { id: 'demo-class' },
+        update: {},
+        create: {
+          id: 'demo-class',
+          schoolId: school.id,
+          name: '4年1組',
+          gradeYear: 4,
+          defaultGrade: 'middle',
+        },
+      });
+    } catch (err) {
+      console.error('ensureSeeded: school/class upsert failed', err);
+      return;
+    }
 
     // ⚠️ User.gradeProfileId には UNIQUE 制約 が ある(1 ユーザー = 1 プロファイル)。
     // 児童ごとに 別の GradeProfile を 用意する。

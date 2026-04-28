@@ -44,18 +44,26 @@ export async function getCurrentKid(): Promise<{
 }> {
   // Vercel の サーバレス は インスタンス ごとに /tmp が 別 なので、
   // どの ページから 入っても まず シードを 流す(冪等)。
-  await ensureSeeded();
+  // どの 段階で 失敗しても 500 にしない:layout が `/pick` に redirect
+  // するので degrade して 番号えらびに 戻るだけ で 済む。
+  try {
+    await ensureSeeded();
 
-  const picked = await getSelectedKidId();
-  if (!picked) return { current: null };
+    const picked = await getSelectedKidId();
+    if (!picked) return { current: null };
 
-  const current = await prisma.user.findUnique({
-    where: { id: picked },
-    include: {
-      gradeProfile: true,
-      school: true,
-    },
-  });
+    const current = await prisma.user.findUnique({
+      where: { id: picked },
+      include: {
+        gradeProfile: true,
+        school: true,
+      },
+    });
 
-  return { current: (current as KidWithProfile | null) ?? null };
+    return { current: (current as KidWithProfile | null) ?? null };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('getCurrentKid failed:', err);
+    return { current: null };
+  }
 }
